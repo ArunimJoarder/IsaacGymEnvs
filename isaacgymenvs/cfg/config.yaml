@@ -71,3 +71,6 @@ hydra:
   run:
     dir: .
 
+# additional
+save_onnx: False
+base_checkpoint: ''

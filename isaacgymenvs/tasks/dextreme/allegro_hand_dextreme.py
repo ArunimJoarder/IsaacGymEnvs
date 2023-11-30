@@ -124,7 +124,12 @@ class AllegroHandDextreme(ADRVecTask):
             self.total_num_resets = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             self.successes_count = torch.zeros(self.max_consecutive_successes + 1, dtype=torch.float, device=self.device)
             from tensorboardX import SummaryWriter
-            self.eval_summary_dir = './eval_summaries'
+            self.eval_summary_dir = "./eval_summaries"
+            if self.cfg["experiment_dir"] != '':
+                self.eval_summary_dir += ("/" + self.cfg["experiment_dir"])
+            if self.cfg["experiment"] != '':
+                self.eval_summary_dir += ("/" + self.cfg["experiment"])
+
             # remove the old directory if it exists
             if os.path.exists(self.eval_summary_dir):
                 import shutil

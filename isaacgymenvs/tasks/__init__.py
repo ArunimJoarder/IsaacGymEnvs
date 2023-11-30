@@ -45,6 +45,7 @@ from .quadcopter import Quadcopter
 from .shadow_hand import ShadowHand
 from .allegro_hand import AllegroHand
 from .dextreme.allegro_hand_dextreme import AllegroHandDextremeManualDR, AllegroHandDextremeADR
+from .dextreme.allegro_hand_dextreme_adversarial import AllegroHandDextremeAdversarialActions
 from .trifinger import Trifinger
 
 from .allegro_kuka.allegro_kuka_reorientation import AllegroKukaReorientation
@@ -111,4 +112,5 @@ isaacgym_task_map = {
     "Quadcopter": Quadcopter,
     "ShadowHand": ShadowHand,
     "Trifinger": Trifinger,
+    "AllegroHandAdversarialActions": AllegroHandDextremeAdversarialActions
 }

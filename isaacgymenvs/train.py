@@ -120,6 +120,8 @@ def launch_rlg_hydra(cfg: DictConfig):
     cfg.seed = set_seed(cfg.seed, torch_deterministic=cfg.torch_deterministic, rank=global_rank)
 
     def create_isaacgym_env(**kwargs):
+        # import pdb 
+        # pdb.set_trace()
         envs = isaacgymenvs.make(
             cfg.seed, 
             cfg.task_name, 
@@ -195,8 +197,11 @@ def launch_rlg_hydra(cfg: DictConfig):
     # convert CLI arguments into dictionary
     # create runner and set the settings
     runner = build_runner(MultiObserver(observers))
+    if cfg.save_onnx:
+        runner = Runner()
     runner.load(rlg_config_dict)
-    runner.reset()
+    if not cfg.save_onnx:
+        runner.reset()
 
     # dump config dict
     if not cfg.test:
@@ -214,6 +219,59 @@ def launch_rlg_hydra(cfg: DictConfig):
         'sigma': cfg.sigma if cfg.sigma != '' else None
     })
 
+    if cfg.save_onnx:
+        import torch
+        import onnx
+        import rl_games.algos_torch.flatten as flatten
+        class ModelWrapper(torch.nn.Module):
+            def __init__(self, model):
+                torch.nn.Module.__init__(self)
+                self.model = model
+                
+            def forward(self,input_dict):
+                input_dict['obs'] = self.model.norm_obs(input_dict['obs'])
+                return self.model.a2c_network(input_dict)
+
+        if not cfg.test:
+            agent = runner.create_player()
+        else:
+            agent = runner.player
+        agent.restore(cfg.checkpoint)
+        agent.init_rnn()
+        
+        inputs = agent.input_dict
+        print("[TRAIN][DEBUG] Input Obs shape:", inputs["obs"].shape)
+        for e in inputs["rnn_states"]:
+            print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
+        # inputs = {
+        #     'obs' : torch.zeros((1,) + agent.obs_shape).to(agent.device),
+        #     'rnn_states' : [torch.zeros((1,1,) + (1024,)).to(agent.device), torch.zeros((1,1,) + (1024,)).to(agent.device)],
+        # }        
+        # print("[TRAIN][DEBUG] Input Obs shape:", inputs["obs"].shape)
+        # for e in inputs["rnn_states"]:
+        #     print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
+        with torch.no_grad():
+            adapter = flatten.TracingAdapter(ModelWrapper(agent.model), inputs, allow_non_tensor=True)
+            traced = torch.jit.trace(adapter, adapter.flattened_inputs, check_trace=False)
+            flattened_outputs = traced(*adapter.flattened_inputs)
+        
+        for i, e in enumerate(flattened_outputs):
+            print(f"[TRAIN][DEBUG] Output {i} shape:", e.shape)
+
+        model_filename = "exported_models/" + cfg.task.name + ".onnx"
+
+        print("[TRAIN] Exporting ONNX model")
+        torch.onnx.export(traced, adapter.flattened_inputs, model_filename, verbose=True, input_names=['obs', 'out_state', 'hidden_state'], output_names=['mu', 'sigma', 'values', 'out_state', 'hidden_state'])
+        print("[TRAIN] ONNX model exported successfully")
+
+        print("[TRAIN] Loading ONNX model")
+        onnx_model = onnx.load(model_filename)
+        print("[TRAIN] ONNX model loaded successfully")
+
+        print("[TRAIN] Checking ONNX model")
+        # Check that the model is well formed
+        onnx.checker.check_model(onnx_model)
+        print("[TRAIN] ONNX model checked successfully")
 
 if __name__ == "__main__":
     launch_rlg_hydra()

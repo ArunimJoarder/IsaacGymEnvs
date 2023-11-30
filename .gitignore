@@ -31,3 +31,7 @@ runs/
 outputs/
 *.hydra*
 /isaacgymenvs/wandb
+/isaacgymenvs/eval_summaries
+.vscode/
+exported_models/
+ranges/
