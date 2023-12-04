@@ -915,7 +915,6 @@ class AllegroHandDextreme(ADRVecTask):
 
 
     def pre_physics_step(self, actions):
-
         # Anneal action moving average 
         self.update_action_moving_average()
        

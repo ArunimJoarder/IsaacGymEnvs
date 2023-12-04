@@ -34,6 +34,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from omegaconf import DictConfig, OmegaConf
 
+debug = True
 
 def preprocess_train_config(cfg, config_dict):
     """
@@ -223,14 +224,18 @@ def launch_rlg_hydra(cfg: DictConfig):
         import torch
         import onnx
         import rl_games.algos_torch.flatten as flatten
+        
         class ModelWrapper(torch.nn.Module):
             def __init__(self, model):
                 torch.nn.Module.__init__(self)
                 self.model = model
                 
             def forward(self,input_dict):
-                input_dict['obs'] = self.model.norm_obs(input_dict['obs'])
-                return self.model.a2c_network(input_dict)
+                input_dict["is_train"] = False
+                result = self.model(input_dict)
+                mu = result["mus"]
+                rnn_states = result["rnn_states"]
+                return mu, rnn_states
 
         if not cfg.test:
             agent = runner.create_player()
@@ -239,37 +244,45 @@ def launch_rlg_hydra(cfg: DictConfig):
         agent.restore(cfg.checkpoint)
         agent.init_rnn()
         
-        inputs = agent.input_dict
-        print("[TRAIN][DEBUG] Input Obs shape:", inputs["obs"].shape)
-        for e in inputs["rnn_states"]:
-            print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
-        # inputs = {
-        #     'obs' : torch.zeros((1,) + agent.obs_shape).to(agent.device),
-        #     'rnn_states' : [torch.zeros((1,1,) + (1024,)).to(agent.device), torch.zeros((1,1,) + (1024,)).to(agent.device)],
-        # }        
-        # print("[TRAIN][DEBUG] Input Obs shape:", inputs["obs"].shape)
-        # for e in inputs["rnn_states"]:
-        #     print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
+        inputs = {
+            'obs' : torch.zeros((1,) + agent.obs_shape).to(agent.device),
+            'rnn_states' : [torch.zeros((1,1,) + (1024,)).to(agent.device), torch.zeros((1,1,) + (1024,)).to(agent.device)],
+        }        
+        if debug:
+            print("[TRAIN][DEBUG] Input Obs shape:", inputs["obs"].shape)
+            for e in inputs["rnn_states"]:
+                print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
+
         with torch.no_grad():
             adapter = flatten.TracingAdapter(ModelWrapper(agent.model), inputs, allow_non_tensor=True)
             traced = torch.jit.trace(adapter, adapter.flattened_inputs, check_trace=False)
             flattened_outputs = traced(*adapter.flattened_inputs)
-        
-        for i, e in enumerate(flattened_outputs):
-            print(f"[TRAIN][DEBUG] Output {i} shape:", e.shape)
+
+        if debug:
+            for i, e in enumerate(adapter.flattened_inputs):
+                print(f"[TRAIN][DEBUG] Input {i} shape:", e.shape)
+
+            for i, e in enumerate(flattened_outputs):
+                print(f"[TRAIN][DEBUG] Output {i} shape:", e.shape)
 
         model_filename = "exported_models/" + cfg.task.name + ".onnx"
 
         print("[TRAIN] Exporting ONNX model")
-        torch.onnx.export(traced, adapter.flattened_inputs, model_filename, verbose=True, input_names=['obs', 'out_state', 'hidden_state'], output_names=['mu', 'sigma', 'values', 'out_state', 'hidden_state'])
+        torch.onnx.export(traced,
+                          adapter.flattened_inputs,
+                          model_filename,
+                          verbose=True,
+                          input_names=['obs', 'out_state', 'hidden_state'],
+                          output_names=['mu', 'out_state', 'hidden_state'],
+                          dynamic_axes={"obs": {0: "batch_size"}, "out_state": {1: "batch_size"}, "hidden_state": {1: "batch_size"}})
         print("[TRAIN] ONNX model exported successfully")
 
         print("[TRAIN] Loading ONNX model")
         onnx_model = onnx.load(model_filename)
         print("[TRAIN] ONNX model loaded successfully")
 
-        print("[TRAIN] Checking ONNX model")
         # Check that the model is well formed
+        print("[TRAIN] Checking ONNX model")
         onnx.checker.check_model(onnx_model)
         print("[TRAIN] ONNX model checked successfully")
 

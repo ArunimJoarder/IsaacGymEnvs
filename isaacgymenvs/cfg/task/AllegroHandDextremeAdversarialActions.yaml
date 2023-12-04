@@ -4,7 +4,7 @@ name: AllegroHandAdversarialActions
 physics_engine: ${..physics_engine}
 
 experiment_dir: 'default'
-experiment: 'test'
+experiment: ${resolve_default:test,${..experiment}}
 
 onnx_model_checkpoint: ${resolve_default:exported_models/AllegroHandDextremeADR.onnx,${..base_checkpoint}}
 
@@ -18,7 +18,7 @@ env:
   aggregateMode: 1
 
   clipObservations: 50.0
-  clipActions: 1.0
+  clipActions: 0.1
   discreteActions: False
 
   stiffnessScale: 1.0
@@ -79,14 +79,24 @@ env:
     prob: 0.3
 
   # reward -> dictionary
-  distRewardScale: -10.0
-  rotRewardScale: 1.0
+  distRewardScale: 10.0
+  rotRewardScale: -0.15
   rotEps: 0.1
-  actionPenaltyScale: -0.001
+  actionPenaltyScale: -0.01
   actionDeltaPenaltyScale: -0.2 #-0.01
-  reachGoalBonus: 250
+  reachGoalBonus: 0
   fallDistance: 0.24
-  fallPenalty: 0.0
+  fallPenalty: 100.0
+
+  # # reward -> dictionary
+  # distRewardScale: -10.0
+  # rotRewardScale: 1.0
+  # rotEps: 0.1
+  # actionPenaltyScale: -0.001
+  # actionDeltaPenaltyScale: -0.2 #-0.01
+  # reachGoalBonus: 250
+  # fallDistance: 0.24
+  # fallPenalty: 0.0
 
   objectType: "block" # can be block, egg or pen
   observationType: "no_vel" #"full_state" # can be "no_vel", "full_state"
