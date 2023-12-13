@@ -44,6 +44,8 @@ from isaacgym import gymtorch
 from isaacgymenvs.utils.torch_jit_utils import scale, unscale, quat_mul, quat_conjugate, quat_from_angle_axis, \
     to_torch, get_axis_params, torch_rand_float, tensor_clamp  
 
+from isaacgymenvs.utils.torch_jit_utils import quat_from_euler_xyz, quat_mul
+
 from torch import Tensor
 
 from isaacgymenvs.tasks.dextreme.adr_vec_task import ADRVecTask
@@ -715,11 +717,17 @@ class AllegroHandDextreme(ADRVecTask):
         rand_floats = torch_rand_float(-1.0, 1.0, (len(env_ids), 4), device=self.device)
 
         if self.apply_random_quat:
-
             new_rot = self.get_random_quat(env_ids)
-
         else:
             new_rot = randomize_rotation(rand_floats[:, 0], rand_floats[:, 1], self.x_unit_tensor[env_ids], self.y_unit_tensor[env_ids])
+
+        if self.pre_defined_goal_change:
+            curr_rot = self.goal_states[env_ids, 3:7]
+            angle = torch_rand_float(-3.14, 3.14, (len(env_ids), 1), device=self.device).reshape((len(env_ids),))
+            axis = to_torch(np.array([0, 0, 1]))
+
+            change_quat = quat_from_angle_axis(angle, axis)
+            new_rot = quat_mul(curr_rot, change_quat)
 
         self.goal_states[env_ids, 0:3] = self.goal_init_state[env_ids, 0:3]
         self.goal_states[env_ids, 3:7] = new_rot
@@ -1202,6 +1210,8 @@ class AllegroHandDextreme(ADRVecTask):
             
             # how often we want to resample the weights of the random neural network
             self.random_adversary_weight_sample_freq = self.cfg["env"]["random_network_adversary"]["weight_sample_freq"]
+
+        self.pre_defined_goal_change = self.cfg.get("predefinedGoalChange", False)
 
     def _init_pre_sim_buffers(self):
 
