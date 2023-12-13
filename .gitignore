@@ -33,5 +33,5 @@ outputs/
 /isaacgymenvs/wandb
 /isaacgymenvs/eval_summaries
 .vscode/
-exported_models/
+# exported_models/
 ranges/

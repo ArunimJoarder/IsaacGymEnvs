@@ -8,6 +8,8 @@ experiment: ${resolve_default:test,${..experiment}}
 
 onnx_model_checkpoint: ${resolve_default:exported_models/AllegroHandDextremeADR.onnx,${..base_checkpoint}}
 
+predefinedGoalChange: False
+
 # if given, will override the device setting in gym.
 env: 
   numEnvs: ${resolve_default:16384,${...num_envs}}
@@ -21,7 +23,7 @@ env:
   # clipActions: 1.0
   discreteActions: False
 
-  clipCubePoseNoise: 0.5
+  clipCubePoseNoise: 0.1
   clipDofPosNoise: 0.1
   clipActionNoise: 0.1
 
