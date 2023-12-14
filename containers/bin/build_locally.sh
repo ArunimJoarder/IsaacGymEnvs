@@ -4,7 +4,7 @@
 # It will mount the current directory into the container
 # and run a shell inside the container. This allows you to
 # run the container locally and debug it inside. (thanks Github Copilot)
-DEXTREME_WS="${PWD}/../../../../"
+DEXTREME_WS="${PWD}/../../../"
 
 custom_flags="--nv --writable -B $DEXTREME_WS/IsaacGymEnvs:/DEXTREME_WS/IsaacGymEnvs"
 
