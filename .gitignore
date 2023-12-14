@@ -35,3 +35,5 @@ outputs/
 .vscode/
 # exported_models/
 ranges/
+deXtreme.sif
+deXtreme.tar
