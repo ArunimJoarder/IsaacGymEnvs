@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.2-runtime-ubuntu20.04 AS builder
+FROM nvidia/cuda:11.4.3-runtime-ubuntu20.04 AS builder
 
 # nvidia-container-runtime
 ENV NVIDIA_VISIBLE_DEVICES \
@@ -23,7 +23,7 @@ ENV CC=/usr/bin/gcc
 # Install dependencies
 RUN apt-get update --fix-missing && apt-get install -y apt-utils git wget vim openscad python3-dev python3-distutils python3-pip libpython3-dev
 RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
-RUN pip3 install matplotlib tensorboard trimesh warp-lang trimesh pytest GitPython numpy==1.23.0 imageio ninja pillow pyyaml scipy
+RUN pip3 install matplotlib tensorboard trimesh warp-lang trimesh pytest GitPython numpy==1.23.0 imageio ninja pillow pyyaml scipy onnxruntime-gpu onnx
 
 # Install IsaacGym
 ADD isaacgym $WORKSPACE/isaacgym
