@@ -6,7 +6,7 @@
 # --mail-type=END : Triggers email to $USER@ethz.ch at the end of training
 # --warp: run command in ''. Does not work with variables (that's why run.sh is needed).
 
-export run_cmd="python3 /IsaacGymEnvs/isaacgymenvs/train.py \
+export run_cmd="python3 /deXtreme/IsaacGymEnvs/isaacgymenvs/train.py \
                   task=AllegroHandDextremeAdversarialObservations \
                   base_checkpoint=exported_models/AllegroHandADR.onnx \
                   wandb_activate=True \
