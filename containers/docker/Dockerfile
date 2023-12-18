@@ -21,9 +21,10 @@ ENV CXX=/usr/bin/g++
 ENV CC=/usr/bin/gcc
 
 # Install dependencies
-RUN apt-get update --fix-missing && apt-get install -y apt-utils git wget vim openscad python3-dev python3-distutils python3-pip libpython3-dev
+RUN apt-get update --fix-missing && apt-get install -y apt-utils git wget vim openscad python3-dev python3-distutils python3-pip libpython3-dev python3-tk
 RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
 RUN pip3 install matplotlib tensorboard trimesh warp-lang trimesh pytest GitPython numpy==1.23.0 imageio ninja pillow pyyaml scipy onnxruntime-gpu onnx
+# RUN pip3 install -r $WORKSPACE/IsaacGymEnvs/requirements.txt
 
 # Install IsaacGym
 ADD isaacgym $WORKSPACE/isaacgym
