@@ -74,6 +74,7 @@ def launch_rlg_hydra(cfg: DictConfig):
 
     import logging
     import os
+    from pathlib import Path
     from datetime import datetime
 
     # noinspection PyUnresolvedReferences
@@ -105,8 +106,18 @@ def launch_rlg_hydra(cfg: DictConfig):
     run_name = f"{cfg.wandb_name}_{time_str}"
 
     # ensure checkpoints can be specified as relative paths
+    dirpath = os.path.abspath(os.path.dirname(__file__))
     if cfg.checkpoint:
-        cfg.checkpoint = to_absolute_path(cfg.checkpoint)
+        checkpoint_path = Path(cfg.checkpoint)
+        if not checkpoint_path.is_absolute():
+            checkpoint_path = os.path.join(dirpath, str(checkpoint_path))
+        cfg.checkpoint = str(checkpoint_path)
+
+    if cfg.base_checkpoint:
+        base_checkpoint_path = Path(cfg.base_checkpoint)
+        if not base_checkpoint_path.is_absolute():
+            base_checkpoint_path = os.path.join(dirpath, str(base_checkpoint_path))
+        cfg.base_checkpoint = str(base_checkpoint_path)
 
     cfg_dict = omegaconf_to_dict(cfg)
     print_dict(cfg_dict)

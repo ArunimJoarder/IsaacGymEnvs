@@ -526,6 +526,13 @@ class AllegroHandDextreme(ADRVecTask):
                 print(f"Max dof deltas: {dof_delta.max(dim=0).values}, max across dofs: {self.dof_delta.abs().max().item():.2f}, mean: {self.dof_delta.abs().mean().item():.2f}")
                 print(f"Max dof delta radians per sec: {dof_delta.max().item() / frame_time:.2f}, mean: {dof_delta.mean().item() / frame_time:.2f}")
 
+                # actions_abs_avg = torch.abs(self.actions).mean(dim=0)
+                # # print(self.actions.size())
+                # # print(actions_abs_avg.size())
+                # for i in range(16):
+                #     print(f"action_abs_avg/dof_{i+1} = ", actions_abs_avg[i].item())
+                # # print(self.actions.cpu().numpy())
+
                 # create a matplotlib bar chart of the self.successes_count
                 import matplotlib.pyplot as plt
                 plt.bar(list(range(self.max_consecutive_successes + 1)), self.successes_count.cpu().numpy())
@@ -724,7 +731,7 @@ class AllegroHandDextreme(ADRVecTask):
         if self.pre_defined_goal_change:
             curr_rot = self.goal_states[env_ids, 3:7]
             angle = torch_rand_float(-3.14, 3.14, (len(env_ids), 1), device=self.device).reshape((len(env_ids),))
-            axis = to_torch(np.array([0, 0, 1]))
+            axis = to_torch(np.array([1, 0, 0]))
 
             change_quat = quat_from_angle_axis(angle, axis)
             new_rot = quat_mul(curr_rot, change_quat)

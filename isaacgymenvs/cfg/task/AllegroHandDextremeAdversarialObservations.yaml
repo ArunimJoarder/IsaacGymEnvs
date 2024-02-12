@@ -8,7 +8,7 @@ experiment: ${resolve_default:test,${..experiment}}
 
 onnx_model_checkpoint: ${resolve_default:exported_models/AllegroHandDextremeADR.onnx,${..base_checkpoint}}
 
-useDofPosObs: False
+useDofPosObs: True
 
 predefinedGoalChange: False
 
@@ -25,9 +25,9 @@ env:
   # clipActions: 1.0
   discreteActions: False
 
-  clipCubeRotNoise: 0.1     # 0.1 rad max noise (~5 degrees)
-  clipCubePosNoise: 0.05    # 5 cm max noise
-  clipDofPosNoise: 0.1      # 10% of the max range of dof motion
+  clipCubeRotNoise: 0.05     # 0.1 rad max noise (~5 degrees)
+  clipCubePosNoise: 0.005    # 5 cm max noise
+  clipDofPosNoise: 0.05      # 10% of the max range of dof motion
 
   stiffnessScale: 1.0
   forceLimitScale: 1.0

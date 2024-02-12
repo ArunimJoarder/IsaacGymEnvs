@@ -1,5 +1,5 @@
 Bootstrap: docker-daemon
-From:dextreme-thesis:latest
+From:dextreme:latest
 
 %post
 chmod -R 777 /opt

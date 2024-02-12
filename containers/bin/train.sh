@@ -21,7 +21,7 @@ export custom_flags="--nv --writable -B /cluster/home/$USER/git/IsaacGymEnvs/:/d
 
 sbatch \
   -n 16 \
-  --mem-per-cpu=2048 \
+  --mem-per-cpu=4096 \
   -G 1 \
   --gres=gpumem:10240 \
   --time=12:00:00 \

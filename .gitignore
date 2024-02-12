@@ -37,3 +37,4 @@ outputs/
 ranges/
 deXtreme.sif
 deXtreme.tar
+*.log

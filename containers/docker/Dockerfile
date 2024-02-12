@@ -22,9 +22,8 @@ ENV CC=/usr/bin/gcc
 
 # Install dependencies
 RUN apt-get update --fix-missing && apt-get install -y apt-utils git wget vim openscad python3-dev python3-distutils python3-pip libpython3-dev python3-tk
-RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
+# RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
 RUN pip3 install matplotlib tensorboard trimesh warp-lang trimesh pytest GitPython numpy==1.23.0 imageio ninja pillow pyyaml scipy onnxruntime-gpu onnx
-# RUN pip3 install -r $WORKSPACE/IsaacGymEnvs/requirements.txt
 
 # Install IsaacGym
 ADD isaacgym $WORKSPACE/isaacgym
@@ -36,7 +35,6 @@ RUN cd $WORKSPACE/IsaacGymEnvs && pip install -e .
 
 # delete folders for mounting your changes on the cluster 
 # (uncomment the next line if you have changes in rsl_rl that needs to be mounted on the cluster)
-#RUN rm -r $WORKSPACE/rsl_rl/* && rm -rf rsl_rl/{,.[!.],..?}*  # deletes normal files && hidden files
 RUN rm -r $WORKSPACE/IsaacGymEnvs/* && rm -rf IsaacGymEnvs/{,.[!.],..?}*  # deletes normal files && hidden files
 
 RUN mkdir -p $WORKSPACE/IsaacGymEnvs/logs
