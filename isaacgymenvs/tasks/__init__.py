@@ -48,6 +48,7 @@ from .dextreme.allegro_hand_dextreme import AllegroHandDextremeManualDR, Allegro
 from .dextreme.allegro_hand_dextreme_adversarial import AllegroHandDextremeAdversarialActions, \
                                                         AllegroHandDextremeAdversarialObservationsAndActions, \
                                                         AllegroHandDextremeAdversarialObservations
+from .dextreme.allegro_hand_dextreme_finetuning import AllegroHandDextremeADRFinetuning
 from .trifinger import Trifinger
 
 from .allegro_kuka.allegro_kuka_reorientation import AllegroKukaReorientation
@@ -116,5 +117,6 @@ isaacgym_task_map = {
     "Trifinger": Trifinger,
     "AllegroHandAdversarialActions": AllegroHandDextremeAdversarialActions,
     "AllegroHandAdversarialObservationsAndActions": AllegroHandDextremeAdversarialObservationsAndActions,
-    "AllegroHandAdversarialObservations": AllegroHandDextremeAdversarialObservations
+    "AllegroHandAdversarialObservations": AllegroHandDextremeAdversarialObservations,
+    "AllegroHandADRFinetuning": AllegroHandDextremeADRFinetuning
 }

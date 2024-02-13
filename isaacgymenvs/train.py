@@ -257,7 +257,7 @@ def launch_rlg_hydra(cfg: DictConfig):
         
         inputs = {
             'obs' : torch.zeros((1,) + agent.obs_shape).to(agent.device),
-            'rnn_states' : [torch.zeros((1,1,) + (1024,)).to(agent.device), torch.zeros((1,1,) + (1024,)).to(agent.device)],
+            'rnn_states' : [torch.zeros((1,1,) + (256,)).to(agent.device), torch.zeros((1,1,) + (256,)).to(agent.device)],
         }        
         if debug:
             print("[TRAIN][DEBUG] Input Obs shape:", inputs["obs"].shape)

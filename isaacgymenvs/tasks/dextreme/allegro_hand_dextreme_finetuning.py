@@ -49,7 +49,11 @@ debug = False
 
 class BaseNoiseGeneratorPlugin:
 	def __init__(self, onnx_model_checkpoint, device) -> None:
-		self._model = ort.InferenceSession(onnx_model_checkpoint, providers=["CUDAExecutionProvider"])
+		sess_options = ort.SessionOptions()
+		# sess_options.inter_op_num_threads = 4
+		# sess_options.intra_op_num_threads = 4
+		# sess_options.log_severity_level = 0
+		self._model = ort.InferenceSession(onnx_model_checkpoint, sess_options=sess_options, providers=["CUDAExecutionProvider"])
 		if debug: print("[TASK-AdvActions][DEBUG] ONNX model input names:", [o.name for o in self._model.get_inputs()])
 		self.device = device
 		self.obs_spec = {
@@ -99,8 +103,6 @@ class BaseNoiseGeneratorPlugin:
 								'space_name': 'state_space'
 							}
 						}
-		self.noises_low = -np.ones(1)
-		self.noises_high = np.ones(1)
 
 		self.action_noise_scale = -0.1
 		self.cube_pos_noise_scale = -0.1
@@ -169,7 +171,7 @@ class BaseNoiseGeneratorPlugin:
 		current_noise = torch.tensor(mu).to(self.device)
 		
 		# TODO: Change hardcoded action high and low
-		return self.rescale_noises(self.noises_low, self.noises_high, torch.clamp(current_noise, -1.0, 1.0))
+		return self.rescale_noises(-1.0, 1.0, torch.clamp(current_noise, -1.0, 1.0))
 
 class AdversarialActionNoiseGeneratorPlugin(BaseNoiseGeneratorPlugin):
 	def __init__(self, onnx_model_checkpoint, device) -> None:
@@ -191,6 +193,8 @@ class AdversarialActionNoiseGeneratorPlugin(BaseNoiseGeneratorPlugin):
 		noise = {}
 		noise["action_noise"] = base_noise * self.action_noise_scale
 
+		return noise, base_noise
+
 class AdversarialActionAndObservationNoiseGeneratorPlugin(BaseNoiseGeneratorPlugin):
 	def __init__(self, onnx_model_checkpoint, device) -> None:
 		super().__init__(onnx_model_checkpoint, device)
@@ -206,9 +210,9 @@ class AdversarialActionAndObservationNoiseGeneratorPlugin(BaseNoiseGeneratorPlug
 		noise["cube_rot_noise"] = base_noise[:,19:22] * self.cube_rot_noise_scale
 		noise["dof_pos_noise"] = base_noise[:,22:38] * self.dof_pos_noise_scale
 
-		return noise
+		return noise, base_noise
 
-class AllegroHandDextremeFinetuner(AllegroHandDextremeADR):
+class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
 		super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
 		
@@ -216,67 +220,56 @@ class AllegroHandDextremeFinetuner(AllegroHandDextremeADR):
 	def _read_cfg(self):
 		super()._read_cfg()
 	
-		self.base_controller_checkpoint = self.cfg["onnx_model_checkpoint"]
+		self.noise_generator_checkpoint = self.cfg["onnx_noise_gen_checkpoint"]
+		self.adv_noise_prob = self.cfg["env"]["adv_noise_prob"]
+
+	def get_num_obs_dict(self, num_dofs):
+		num_obs_dict = AllegroHandDextremeADR.get_num_obs_dict(self, num_dofs)
+		num_obs_dict["last_actions_full"] = 16 + 3 + 3 + 16
+		return num_obs_dict
 
 	def _init_post_sim_buffers(self):
 		super()._init_post_sim_buffers()
-		self.noise_generator = BaseNoiseGeneratorPlugin(self.base_controller_checkpoint, self.device)
+		self.noise_generator = AdversarialActionAndObservationNoiseGeneratorPlugin(self.noise_generator_checkpoint, self.device)
 
 	def pre_physics_step(self, actions):
-		# Anneal action moving average 
-		self.update_action_moving_average()
-	   
-		env_ids_reset = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
-		goal_env_ids = self.reset_goal_buf.nonzero(as_tuple=False).squeeze(-1)
+		self.use_adv_noise = False
+		if np.random.rand() < self.adv_noise_prob:
+			# print("============================= Adversarial Noise Used!!!!! =============================")
+			self.use_adv_noise = True
+		# else:
+		# 	print("=======================================================================================")
 
-		if self.randomize and not self.use_adr:
-			self.apply_randomizations(dr_params=self.randomization_params, randomisation_callback=self.randomisation_callback)
-
-		elif self.randomize and self.use_adr:
-					   
-			# NB - when we are daing ADR, we must calculate the ADR or new DR vals one step BEFORE applying randomisations
-			# this is because reset needs to be applied on the next step for it to take effect
-			env_mask_randomize = (self.reset_buf & ~self.apply_reset_buf).bool()
-			env_ids_reset = self.apply_reset_buf.nonzero(as_tuple=False).flatten()			
-			if len(env_mask_randomize.nonzero(as_tuple=False).flatten()) > 0:
-				self.apply_randomizations(dr_params=self.randomization_params,
-										 randomize_buf=env_mask_randomize,
-										 adr_objective=self.successes,
-										 randomisation_callback=self.randomisation_callback)
-
-				self.apply_reset_buf[env_mask_randomize] = 1
-
-		# if only goals need reset, then call set API
-		if len(goal_env_ids) > 0 and len(env_ids_reset) == 0:
-			self.reset_target_pose(goal_env_ids, apply_reset=True)
-
-		# if goals need reset in addition to other envs, call set API in reset()
-		elif len(goal_env_ids) > 0:
-			self.reset_target_pose(goal_env_ids)
-
-		if len(env_ids_reset) > 0:
-			self.reset_idx(env_ids_reset, goal_env_ids)
-
-		self.action_noises = action_noises
-		self.base_controller_actions = self.base_controller.get_noise(self.obs_dict)
-		actions = self.base_controller_actions + self.action_noises
-
-		self.apply_actions(actions)
-		self.apply_random_forces()
+		self.noises, self.noises_full = self.noise_generator.get_noise(self.obs_dict)
+		
+		if self.use_adv_noise and "action_noise" in self.noises.keys():
+			# print("=============================   Action Noise Added!!!!!   =============================")
+			actions = actions + self.noises["action_noise"]
+	
+		super().pre_physics_step(actions)
 
 	def compute_observations(self):
 		super().compute_observations()
+		self.obs_dict["last_actions_full"][:] = self.noises_full
 
-		self.obs_dict["last_actions"][:] = self.base_controller_actions
+		if self.use_adv_noise and "cube_pos_noise" in self.noises.keys() and "cube_rot_noise" in self.noises.keys():
+			noisy_cube_pos = self.obs_dict["object_pose_cam_randomized"][:, 0:3] + self.noises["cube_pos_noise"]
 
-	def compute_reward(self, actions):
-		super().compute_reward(actions)
+			cube_rot_noise_quat = quat_from_euler_xyz(self.noises["cube_rot_noise"][:, 0], 
+													  self.noises["cube_rot_noise"][:, 1],
+													  self.noises["cube_rot_noise"][:, 2])
+			
+			cube_rot = self.obs_dict["object_pose_cam_randomized"][:, 3:7]
+			noisy_cube_rot = quat_mul(cube_rot, cube_rot_noise_quat)
 
-		if self.print_success_stat:
-			if self.frame % 100 == 0:
-				last_action_noise_avg = self.action_noises.mean(dim=1)
-				last_base_action_avg = self.base_controller_actions.mean(dim=1)
+			quat_diff = quat_mul(cube_rot, quat_conjugate(noisy_cube_rot))
+			rot_dist = 2.0 * torch.asin(torch.clamp(torch.norm(quat_diff[:, 0:3], p=2, dim=-1), max=1.0))
 
-				for i in range(16):
-					# self.eval_summaries.add_scalar(f"base_actions_avg/actuator_{i+1}", last_base_action_avg[i].item(), self.frame)
-					self.eval_summaries.add_scalar(f"action_noises_avg/actuator_{i+1}", last_action_noise_avg[i].item(), self.frame)
+			noisy_cube_pose_obs = torch.cat((noisy_cube_pos, noisy_cube_rot), axis=-1)
+			
+			# print("============================= Cube Pose Noise Added!!!!!  =============================")
+			self.obs_dict["object_pose_cam_randomized"] = noisy_cube_pose_obs
+			
+		if self.use_adv_noise and "dof_pos_noise" in self.noises.keys():
+			# print("=============================  DoF Pos Noise Added!!!!!   =============================")
+			self.obs_dict["dof_pos_randomized"] = self.obs_dict["dof_pos_randomized"] + self.noises["dof_pos_noise"]
