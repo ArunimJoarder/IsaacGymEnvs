@@ -1,18 +1,14 @@
 # used to create the object
-name: AllegroHandAdversarialObservationsAndActions
+name: AllegroHandADRFinetuning
 
 physics_engine: ${..physics_engine}
 
 experiment_dir: 'default'
 experiment: ${resolve_default:test,${..experiment}}
 
-onnx_model_checkpoint: ${resolve_default:exported_models/AllegroHandDextremeADR.onnx,${..base_checkpoint}}
+onnx_noise_gen_checkpoint: 'exported_models/AllegroHandAdversarialObservationsAndActions.onnx'
 
 predefinedGoalChange: False
-plot_noises: False
-
-test: ${resolve_default:True,${..test}}
-
 
 # if given, will override the device setting in gym.
 env: 
@@ -24,25 +20,10 @@ env:
   aggregateMode: 1
 
   clipObservations: 50.0
-  # clipActions: 1.0
+  clipActions: 1.0
   discreteActions: False
 
-  clipCubeRotNoise: 0.05    # 0.05 rad max noise (~2.5 degrees)
-  clipCubePosNoise: 0.005   # 0.005 m or 5 mm max noise
-
-  clipDofPosNoiseInit: 0.10     # 10% of the max range of dof motion
-  clipActionNoiseInit: 0.10     # 10% of the max range of dof motion
-  clipDofPosNoiseEnd: 0.01     # 1% of the max range of dof motion
-  clipActionNoiseEnd: 0.01     # 1% of the max range of dof motion
-  curriculumMaxSteps: 1000
-  curriculumScheduleFreq: 500
-
-  # clipDofPosNoiseInit: 0.1     # 10% of the max range of dof motion
-  # clipActionNoiseInit: 0.1     # 10% of the max range of dof motion
-  # clipDofPosNoiseEnd: 0.01     # 1% of the max range of dof motion
-  # clipActionNoiseEnd: 0.01     # 1% of the max range of dof motion
-  # curriculumMaxSteps: 600_000
-  # curriculumScheduleFreq: 500
+  adv_noise_prob: 0.1
 
   stiffnessScale: 1.0
   forceLimitScale: 1.0
@@ -58,7 +39,6 @@ env:
   num_success_hold_steps: 0
 
   actionsMovingAverage: 
-    ### Dont need to worry about smoothing out because base controller is already smooth, and noise is allowed to be, well, "noisy"
     range: [0.15, 0.15]
     schedule_steps: 1000_000
     #schedule_steps: 300_000
@@ -94,65 +74,23 @@ env:
 
   # Random Adversarial Perturbations
   random_network_adversary:
-    enable: False
-    prob: 0.15
+    enable: True
+    # prob: 0.30
     weight_sample_freq: 1000 # steps 
 
   random_cube_observation:
     enable: True 
     prob: 0.3
 
-  # # reward -> dictionary
-  # distRewardScale: 1.5
-  # rotRewardScale: -0.15
-  # rotEps: 0.1
-  # actionPenaltyScale: -0.001
-  # actionDeltaPenaltyScale: -0.2 #-0.01
-  # actionNoisePenaltyScale: -0.01
-  # cubeRotNoisePenaltyScale: -0.01
-  # cubePosNoisePenaltyScale: -0.01
-  # dofPosNoisePenaltyScale: -0.01
-  # reachGoalBonus: 0
-  # fallDistance: 0.24
-  # fallPenalty: 0.0
-
-  # distRewardScale: 10.0
-  # rotRewardScale: -0.15
-  # rotEps: 0.1
-  # actionPenaltyScale: -0.001
-  # actionDeltaPenaltyScale: -0.2 #-0.01
-  # actionNoisePenaltyScale: -0.1
-  # cubeRotNoisePenaltyScale: -0.1
-  # cubePosNoisePenaltyScale: -0.1
-  # dofPosNoisePenaltyScale: -0.1
-  # reachGoalBonus: 0
-  # fallDistance: 0.24
-  # fallPenalty: 0.0
-
   # reward -> dictionary
-  distRewardScale: 10.0
-  rotRewardScale: -1.0
+  distRewardScale: -10.0
+  rotRewardScale: 1.0
   rotEps: 0.1
-  actionPenaltyScale: -0.0
-  actionDeltaPenaltyScale: -0.0 #-0.01
-  actionNoisePenaltyScale: -0.0
-  cubeRotNoisePenaltyScale: -0.01
-  cubePosNoisePenaltyScale: -0.01
-  dofPosNoisePenaltyScale: -0.0
-  reachGoalBonus: -250
+  actionPenaltyScale: -0.001
+  actionDeltaPenaltyScale: -0.2 #-0.01
+  reachGoalBonus: 250
   fallDistance: 0.24
   fallPenalty: 0.0
-
-
-  # # reward -> dictionary
-  # distRewardScale: -10.0
-  # rotRewardScale: 1.0
-  # rotEps: 0.1
-  # actionPenaltyScale: -0.001
-  # actionDeltaPenaltyScale: -0.2 #-0.01
-  # reachGoalBonus: 250
-  # fallDistance: 0.24
-  # fallPenalty: 0.0
 
   objectType: "block" # can be block, egg or pen
   observationType: "no_vel" #"full_state" # can be "no_vel", "full_state"
@@ -300,7 +238,7 @@ task:
     use_adr: True
 
     # set to false to not do update ADR ranges. useful for evaluation or training a base policy
-    update_adr_ranges: False 
+    update_adr_ranges: True 
     clear_other_queues: False
 
     # if set, boundary sampling and performance eval will occur at (bound + delta) instead of at bound.
@@ -444,14 +382,14 @@ task:
         delta: 0.0
         delta_style: 'additive' 
       affine_action_additive:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
       affine_action_white:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
 
       affine_cube_pose_scaling:
@@ -460,14 +398,14 @@ task:
         delta: 0.0
         delta_style: 'additive' 
       affine_cube_pose_additive:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
       affine_cube_pose_white:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
 
       affine_dof_pos_scaling:
@@ -476,20 +414,20 @@ task:
         delta: 0.0
         delta_style: 'additive' 
       affine_dof_pos_additive:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
       affine_dof_pos_white:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
       
       rna_alpha:
         init_range: [0.0, 0.0]
         limits: [0.0, 1.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive'
 
 sim:

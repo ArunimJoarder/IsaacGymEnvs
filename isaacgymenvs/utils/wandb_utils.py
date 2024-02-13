@@ -27,6 +27,7 @@ class WandbAlgoObserver(AlgoObserver):
         # this can fail occasionally, so we try a couple more times
         @retry(3, exceptions=(Exception,))
         def init_wandb():
+            # wandb.login(key="fb26090c045a62fbeb9b99a2b7b5d857e70ffdef")
             wandb.init(
                 project=cfg.wandb_project,
                 entity=cfg.wandb_entity,
