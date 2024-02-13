@@ -119,6 +119,15 @@ def launch_rlg_hydra(cfg: DictConfig):
             base_checkpoint_path = os.path.join(dirpath, str(base_checkpoint_path))
         cfg.base_checkpoint = str(base_checkpoint_path)
 
+    try:
+        if cfg.task.onnx_noise_gen_checkpoint:
+            onnx_noise_gen_checkpoint_path = Path(cfg.task.onnx_noise_gen_checkpoint)
+            if not onnx_noise_gen_checkpoint_path.is_absolute():
+                onnx_noise_gen_checkpoint_path = os.path.join(dirpath, str(onnx_noise_gen_checkpoint_path))
+            cfg.task.onnx_noise_gen_checkpoint = str(onnx_noise_gen_checkpoint_path)
+    except AttributeError:
+        print("No onnx_noise_gen_checkpoint in  cfg.task")
+
     cfg_dict = omegaconf_to_dict(cfg)
     print_dict(cfg_dict)
 
@@ -217,9 +226,11 @@ def launch_rlg_hydra(cfg: DictConfig):
 
     # dump config dict
     if not cfg.test:
-        experiment_dir = os.path.join('runs', cfg.train.params.config.name + 
+        experiment_dir = os.path.join(dirpath, 'runs', cfg.train.params.config.name + 
         '_{date:%d-%H-%M-%S}'.format(date=datetime.now()))
-
+        # print("===================================================================")
+        # print(experiment_dir)
+        # print("===================================================================")
         os.makedirs(experiment_dir, exist_ok=True)
         with open(os.path.join(experiment_dir, 'config.yaml'), 'w') as f:
             f.write(OmegaConf.to_yaml(cfg))
