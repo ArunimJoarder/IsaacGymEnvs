@@ -128,6 +128,16 @@ def launch_rlg_hydra(cfg: DictConfig):
     except AttributeError:
         print("No onnx_noise_gen_checkpoint in  cfg.task")
 
+    try:
+        if cfg.train.params.config.train_dir:
+            params_config_train_dir_path = Path(cfg.train.params.config.train_dir)
+            if not params_config_train_dir_path.is_absolute():
+                params_config_train_dir_path = os.path.join(dirpath, str(params_config_train_dir_path))
+            cfg.train.params.config.train_dir = str(params_config_train_dir_path)
+            print(cfg.train.params.config.train_dir)
+    except AttributeError:
+        print("No params.config.train_dir in cfg.train")
+
     cfg_dict = omegaconf_to_dict(cfg)
     print_dict(cfg_dict)
 
