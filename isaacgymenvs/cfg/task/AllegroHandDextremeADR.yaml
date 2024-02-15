@@ -4,7 +4,7 @@ name: AllegroHandADR
 physics_engine: ${..physics_engine}
 
 experiment_dir: 'default'
-experiment: ''
+experiment: ${resolve_default:test,${..experiment}}
 
 predefinedGoalChange: False
 

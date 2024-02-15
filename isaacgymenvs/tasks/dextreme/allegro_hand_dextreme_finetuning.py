@@ -36,6 +36,7 @@ import torch
 
 from isaacgymenvs.tasks.dextreme.adr_vec_task import ADRVecTask
 from isaacgymenvs.tasks.dextreme.allegro_hand_dextreme import AllegroHandDextremeADR, AllegroHandDextreme
+from isaacgymenvs.tasks.dextreme.allegro_hand_dextreme_adversarial import BaseControllerPlugin
 from isaacgymenvs.utils.torch_jit_utils import scale, unscale, tensor_clamp  
 from isaacgymenvs.utils.torch_jit_utils import quat_from_euler_xyz, quat_mul, quat_conjugate
 
@@ -54,7 +55,7 @@ class BaseNoiseGeneratorPlugin:
 		# sess_options.intra_op_num_threads = 4
 		# sess_options.log_severity_level = 0
 		self._model = ort.InferenceSession(onnx_model_checkpoint, sess_options=sess_options, providers=["CUDAExecutionProvider"])
-		if debug: print("[TASK-AdvActions][DEBUG] ONNX model input names:", [o.name for o in self._model.get_inputs()])
+		if debug: print("[TASK-Finetuning][DEBUG] ONNX model input names:", [o.name for o in self._model.get_inputs()])
 		self.device = device
 		self.obs_spec = {
 							'obs': {
@@ -104,10 +105,10 @@ class BaseNoiseGeneratorPlugin:
 							}
 						}
 
-		self.action_noise_scale = -0.1
-		self.cube_pos_noise_scale = -0.1
-		self.cube_rot_noise_scale = -0.1
-		self.dof_pos_noise_scale = -0.1
+		self.action_noise_scale = 0.01
+		self.cube_pos_noise_scale = 0.005
+		self.cube_rot_noise_scale = 0.05
+		self.dof_pos_noise_scale = 0.01
 		self.num_rnn_states = 256
 
 		self.init_rnn_needed = True
@@ -147,9 +148,9 @@ class BaseNoiseGeneratorPlugin:
 			self.init_rnn_needed = False
 		
 		if debug: 
-			print("[TASK-AdvActions][DEBUG] Obs shape", np_obs.shape, type(np_obs))
+			print("[TASK-Finetuning][DEBUG] Obs shape", np_obs.shape, type(np_obs))
 			for i,e in enumerate(self.states):
-				print(f"[TASK-AdvActions][DEBUG] State {i} shape", e.shape, type(e))
+				print(f"[TASK-Finetuning][DEBUG] State {i} shape", e.shape, type(e))
 
 		input_dict = {
 			'obs' : np_obs,
@@ -157,15 +158,15 @@ class BaseNoiseGeneratorPlugin:
 			'hidden_state.1' : self.states[1],
 		}
 		
-		if debug: print("[TASK-AdvActions][DEBUG] Running ONNX model")
+		if debug: print("[TASK-Finetuning][DEBUG] Running ONNX model")
 		
 		mu, out_states, hidden_states = self._model.run(None, input_dict)
 		
 		if debug: 
-			print("[TASK-AdvActions][DEBUG] ONNX model ran successfully")
-			print(f"[TASK-AdvActions][DEBUG] mu shape:", mu.shape)
-			print(f"[TASK-AdvActions][DEBUG] out_states shape:", out_states.shape)
-			print(f"[TASK-AdvActions][DEBUG] hidden_states shape:", hidden_states.shape)
+			print("[TASK-Finetuning][DEBUG] ONNX model ran successfully")
+			print(f"[TASK-Finetuning][DEBUG] mu shape:", mu.shape)
+			print(f"[TASK-Finetuning][DEBUG] out_states shape:", out_states.shape)
+			print(f"[TASK-Finetuning][DEBUG] hidden_states shape:", hidden_states.shape)
 		
 		self.states = (out_states, hidden_states)
 		current_noise = torch.tensor(mu).to(self.device)
@@ -273,3 +274,72 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 		if self.use_adv_noise and "dof_pos_noise" in self.noises.keys():
 			# print("=============================  DoF Pos Noise Added!!!!!   =============================")
 			self.obs_dict["dof_pos_randomized"] = self.obs_dict["dof_pos_randomized"] + self.noises["dof_pos_noise"]
+
+class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
+	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
+		super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
+		
+
+	def _read_cfg(self):
+		super()._read_cfg()
+	
+		self.base_controller_checkpoint = self.cfg["onnx_model_checkpoint"]
+		self.noise_generator_checkpoint = self.cfg["onnx_noise_gen_checkpoint"]
+		self.adv_noise_prob = self.cfg["env"]["adv_noise_prob"]
+
+	def get_num_obs_dict(self, num_dofs):
+		num_obs_dict = AllegroHandDextremeADR.get_num_obs_dict(self, num_dofs)
+		num_obs_dict["last_actions_full"] = 16 + 3 + 3 + 16
+		num_obs_dict["base_actions"] = 16
+		return num_obs_dict
+
+	def _init_post_sim_buffers(self):
+		super()._init_post_sim_buffers()
+		self.noise_generator = AdversarialActionAndObservationNoiseGeneratorPlugin(self.noise_generator_checkpoint, self.device)
+		self.base_controller = BaseControllerPlugin(self.base_controller_checkpoint, self.device)
+
+	def pre_physics_step(self, delta_actions):
+		self.use_adv_noise = False
+		if np.random.rand() < self.adv_noise_prob:
+			self.use_adv_noise = True
+
+		self.noises, self.noises_full = self.noise_generator.get_noise(self.obs_dict)
+		
+		self.base_actions = self.base_controller.get_action(self.obs_dict)
+
+		self.delta_actions = delta_actions
+
+		actions = self.base_actions + delta_actions
+		actions = torch.clamp(actions, -1.0, 1.0)
+		if self.use_adv_noise and "action_noise" in self.noises.keys():
+			actions = actions + self.noises["action_noise"]
+	
+		super().pre_physics_step(actions)
+
+	def compute_observations(self):
+		super().compute_observations()
+		self.obs_dict["last_actions_full"][:] = self.noises_full
+		self.obs_dict["base_actions"][:] = self.base_actions
+
+		if self.use_adv_noise and "cube_pos_noise" in self.noises.keys() and "cube_rot_noise" in self.noises.keys():
+			noisy_cube_pos = self.obs_dict["object_pose_cam_randomized"][:, 0:3] + self.noises["cube_pos_noise"]
+
+			cube_rot_noise_quat = quat_from_euler_xyz(self.noises["cube_rot_noise"][:, 0], 
+													  self.noises["cube_rot_noise"][:, 1],
+													  self.noises["cube_rot_noise"][:, 2])
+			
+			cube_rot = self.obs_dict["object_pose_cam_randomized"][:, 3:7]
+			noisy_cube_rot = quat_mul(cube_rot, cube_rot_noise_quat)
+
+			quat_diff = quat_mul(cube_rot, quat_conjugate(noisy_cube_rot))
+			rot_dist = 2.0 * torch.asin(torch.clamp(torch.norm(quat_diff[:, 0:3], p=2, dim=-1), max=1.0))
+
+			noisy_cube_pose_obs = torch.cat((noisy_cube_pos, noisy_cube_rot), axis=-1)
+			
+			self.obs_dict["object_pose_cam_randomized"] = noisy_cube_pose_obs
+			
+		if self.use_adv_noise and "dof_pos_noise" in self.noises.keys():
+			self.obs_dict["dof_pos_randomized"] = self.obs_dict["dof_pos_randomized"] + self.noises["dof_pos_noise"]
+
+	def compute_reward(self, actions):
+		return super().compute_reward(self.delta_actions)
