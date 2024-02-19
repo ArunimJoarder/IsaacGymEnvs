@@ -279,6 +279,24 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
 		super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
 		
+		self.realtime_plots = self.cfg["plot_delta_actions"]
+		if self.realtime_plots:
+			if self.num_envs <= 4:
+				self.rt_plot_fig_actions, self.rt_plot_ax_actions = plt.subplots(4,4, sharey=True, sharex=True)
+
+				self.rt_plot_fig_actions.suptitle("Residual Actions")
+				for i, ax in enumerate(self.rt_plot_ax_actions.flat):
+					ax.set(xlabel='frame')
+					ax.set_title(f"dof_{i+1} Delta Action")
+
+				self.rt_plot_fig_actions.show()
+				plt.pause(0.0001)
+
+				self.rt_plot_actions_buffer = np.zeros((1, self.num_envs, 16))
+				self.rt_plot_frame_buffer = np.zeros(1)
+			else:
+				self.realtime_plots = False
+				print("Real-time plots cannot be plotted with more than 4 agents being simulated at once.") 
 
 	def _read_cfg(self):
 		super()._read_cfg()
@@ -341,5 +359,24 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 		if self.use_adv_noise and "dof_pos_noise" in self.noises.keys():
 			self.obs_dict["dof_pos_randomized"] = self.obs_dict["dof_pos_randomized"] + self.noises["dof_pos_noise"]
 
+	def plot_residual_actions(self):
+		if self.realtime_plots:
+			if self.frame % 10 == 0:
+				for ax in self.rt_plot_ax_actions.flat:
+					ax.cla()
+				self.rt_plot_frame_buffer = np.vstack([self.rt_plot_frame_buffer, self.frame])
+				self.rt_plot_actions_buffer = np.vstack([self.rt_plot_actions_buffer, np.array([self.delta_actions.cpu().numpy(),])])
+
+				for i in range(self.num_envs):
+					for j, ax in enumerate(self.rt_plot_ax_actions.flat):
+						ax.plot(self.rt_plot_frame_buffer[:], self.rt_plot_actions_buffer[:, i, j])
+
+				for i, ax in enumerate(self.rt_plot_ax_actions.flat):
+					# ax.set(xlabel='frame')
+					ax.set_title(f"dof_{i+1} Delta Action")
+
+				plt.pause(0.0001)
+
 	def compute_reward(self, actions):
-		return super().compute_reward(self.delta_actions)
+		super().compute_reward(self.delta_actions)
+		self.plot_residual_actions()

@@ -11,6 +11,8 @@ onnx_model_checkpoint: ${resolve_default:exported_models/AllegroHandADR.onnx,${.
 
 predefinedGoalChange: False
 
+plot_delta_actions: False
+
 # if given, will override the device setting in gym.
 env: 
   numEnvs: ${resolve_default:16384,${...num_envs}}
@@ -87,8 +89,8 @@ env:
   distRewardScale: -10.0
   rotRewardScale: 1.0
   rotEps: 0.1
-  actionPenaltyScale: -0.01
-  actionDeltaPenaltyScale: -0.2 #-0.01
+  actionPenaltyScale: -1.0
+  actionDeltaPenaltyScale: -2.0 #-0.01
   reachGoalBonus: 250
   fallDistance: 0.24
   fallPenalty: 0.0
