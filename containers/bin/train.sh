@@ -14,10 +14,11 @@ export run_cmd="python3 /deXtreme/IsaacGymEnvs/isaacgymenvs/train.py \
                   wandb_entity=joarder-arunim-github \
                   headless=True \
                   num_envs=4096 \
-                  experiment=euler_ft_delta_adv_prob_0.10_4096 \
+                  experiment=euler_ft_delta_adv_prob_0.00_4096_5000_iters \
                   task.experiment_dir=while_training \
                   task.env.printNumSuccesses=True \
-                  task.env.adv_noise_prob=0.10"
+                  task.env.adv_noise_prob=0.00 \
+                  max_iterations=5000"
 
 export custom_flags="--nv --writable -B /cluster/home/$USER/git/IsaacGymEnvs/:/deXtreme/IsaacGymEnvs"
 
@@ -26,7 +27,7 @@ sbatch \
   --mem-per-cpu=8192 \
   -G 1 \
   --gres=gpumem:204800 \
-  --time=4:00:00 \
+  --time=10:00:00 \
   -A es_hutter \
   --mail-type=END \
   --tmp=15G \
