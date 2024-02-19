@@ -7,15 +7,17 @@
 # --warp: run command in ''. Does not work with variables (that's why run.sh is needed).
 
 export run_cmd="python3 /deXtreme/IsaacGymEnvs/isaacgymenvs/train.py \
-                  task=AllegroHandDextremeADRFinetuning \
+                  task=AllegroHandDextremeADRFinetuningResidualActions \
                   task.onnx_noise_gen_checkpoint=exported_models/AllegroHandAdversarialObservationsAndActions.onnx \
+                  base_checkpoint=exported_models/AllegroHandADR.onnx \
                   wandb_activate=True \
                   wandb_entity=joarder-arunim-github \
                   headless=True \
-                  num_envs=8192 \
-                  experiment=euler_finetuning \
+                  num_envs=4096 \
+                  experiment=euler_ft_delta_adv_prob_0.10_4096 \
                   task.experiment_dir=while_training \
-                  task.env.printNumSuccesses=True"
+                  task.env.printNumSuccesses=True \
+                  task.env.adv_noise_prob=0.10"
 
 export custom_flags="--nv --writable -B /cluster/home/$USER/git/IsaacGymEnvs/:/deXtreme/IsaacGymEnvs"
 

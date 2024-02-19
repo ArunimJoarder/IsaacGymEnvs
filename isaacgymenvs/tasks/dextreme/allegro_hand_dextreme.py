@@ -733,7 +733,7 @@ class AllegroHandDextreme(ADRVecTask):
         if self.pre_defined_goal_change:
             curr_rot = self.goal_states[env_ids, 3:7]
             angle = torch_rand_float(-3.14, 3.14, (len(env_ids), 1), device=self.device).reshape((len(env_ids),))
-            axis = to_torch(np.array([1, 0, 0]))
+            axis = to_torch(np.array([0, 0, 1]))
 
             change_quat = quat_from_angle_axis(angle, axis)
             new_rot = quat_mul(curr_rot, change_quat)
