@@ -13,6 +13,10 @@ predefinedGoalChange: False
 
 plot_delta_actions: False
 
+test: ${resolve_default:False,${..test}}
+
+adr_params_file: 'exported_models/adr_params.pkl'
+
 # if given, will override the device setting in gym.
 env: 
   numEnvs: ${resolve_default:16384,${...num_envs}}
@@ -256,7 +260,7 @@ task:
 
     adr_rollout_perf_alpha: 0.99
 
-    adr_load_from_checkpoint: false
+    adr_load_from_checkpoint: False
 
     # raw ADR params. more are added by affine transforms code
     params:

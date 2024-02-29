@@ -120,6 +120,15 @@ def launch_rlg_hydra(cfg: DictConfig):
         cfg.base_checkpoint = str(base_checkpoint_path)
 
     try:
+        if cfg.task.adr_params_file:
+            adr_params_file_path = Path(cfg.task.adr_params_file)
+            if not adr_params_file_path.is_absolute():
+                adr_params_file_path = os.path.join(dirpath, str(adr_params_file_path))
+            cfg.task.adr_params_file = str(adr_params_file_path)
+    except AttributeError:
+        print("No adr_params_file in  cfg.task")
+
+    try:
         if cfg.task.onnx_noise_gen_checkpoint:
             onnx_noise_gen_checkpoint_path = Path(cfg.task.onnx_noise_gen_checkpoint)
             if not onnx_noise_gen_checkpoint_path.is_absolute():
