@@ -3,11 +3,13 @@
 # exit if something fails!
 # set -e
 
-checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_allegrohand_multigpuOVX_noFabrics_fixedFT_forceScale10_v5_ep_98000_rew_4717.542.pth
+# checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_allegrohand_multigpuOVX_noFabrics_fixedFT_forceScale10_v5_ep_98000_rew_4717.542.pth
+checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/finetuned/last_euler_ft_delta_adv_prob_0.00_new_reward_-20_delta_action_penalty_4096_5000_iters_ep_5000_rew__1752.15_.pth
+# checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/finetuned/last_euler_ft_delta_adv_prob_0.10_new_reward_-20_delta_action_penalty_4096_5000_iters_ep_5000_rew__1812.27_.pth
 
 num_games=120000
 num_envs=1024
-timeout=1230
+timeout=20m
 
 # properties=("adr.params.hand_damping" "adr.params.hand_stiffness" "adr.params.hand_joint_friction" "adr.params.hand_armature" "adr.params.hand_effort" "adr.params.hand_lower" "adr.params.hand_upper" "adr.params.hand_mass" "adr.params.hand_friction_fingertips" "adr.params.hand_restitution" "adr.params.object_mass" "adr.params.object_friction" "adr.params.object_restitution" "adr.params.cube_obs_delay_prob" "adr.params.cube_pose_refresh_rate" "adr.params.action_delay_prob" "adr.params.action_latency" "adr.params.affine_action_scaling" "adr.params.affine_action_additive" "adr.params.affine_action_white" "adr.params.affine_cube_pose_scaling" "adr.params.affine_cube_pose_additive" "adr.params.affine_cube_pose_white" "adr.params.affine_dof_pos_scaling" "adr.params.affine_dof_pos_additive" "adr.params.affine_dof_pos_white" "adr.params.rna_alpha")
 
@@ -20,9 +22,9 @@ timeout=1230
 # properties=("forceScale" "forceScale" "forceScale" "forceScale" "forceScale" "forceScale" "forceDecay" "forceDecay" "forceDecay" "forceDecay" "forceDecay" "forceDecayInterval" "forceDecayInterval" "forceDecayInterval" "forceDecayInterval" "forceDecayInterval" "forceDecayInterval")
 # value=("2.0" "2.2" "2.4" "2.6" "2.8" "3.0" "0.99" "0.79" "0.69" "0.59" "0.49" "0.080" "0.088" "0.096" "0.104" "0.112" "0.120")
 
-properties=("forceProbRange" "forceProbRange" "forceProbRange" "forceProbRange" "forceProbRange")
-min_value=("0.0009" "0.0008" "0.0007" "0.0006" "0.0005")
-max_value=("0.1900" "0.2800" "0.3700" "0.4600" "0.5500")
+# properties=("forceProbRange" "forceProbRange" "forceProbRange" "forceProbRange" "forceProbRange")
+# min_value=("0.0009" "0.0008" "0.0007" "0.0006" "0.0005")
+# max_value=("0.1900" "0.2800" "0.3700" "0.4600" "0.5500")
 
 main_dir=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs
 tmpfile=temp
@@ -47,25 +49,25 @@ done
 # # echo $re $le $property_names $filename
 # python $main_dir/scripts/generate_ranges.py -r $re -p $property_names -f $filename-$re
 
-# filename=${main_dir}/scripts/ranges/$filename-$re.txt
+filename=${main_dir}/scripts/ranges/$filename-$re.txt
 
-# j=0
-# while read F  ; do
-#     line=$F
-#     # echo $line
-#     if [ $j -eq 0 ]
-#     then
-#         declare -a properties=( $line )
-#     elif [ $j -eq 1 ]
-#     then
-#         declare -a min_value=( $line )
-#     else
-#         declare -a max_value=( $line )
-#     fi
-#     # echo $line
-#     j=$((j + 1))
-#     # echo $j
-# done <$filename
+j=0
+while read F  ; do
+    line=$F
+    # echo $line
+    if [ $j -eq 0 ]
+    then
+        declare -a properties=( $line )
+    elif [ $j -eq 1 ]
+    then
+        declare -a min_value=( $line )
+    else
+        declare -a max_value=( $line )
+    fi
+    # echo $line
+    j=$((j + 1))
+    # echo $j
+done <$filename
 
 len=${#properties[@]}
 echo $properties $min_value $max_value $len
@@ -79,24 +81,30 @@ echo $properties $min_value $max_value $len
 #     len=$temp_len
 # fi
 
-# timeout $timeout \
-#     python $main_dir/train.py \
-#         task=AllegroHandDextremeADR \
-#         checkpoint=${checkpoint} \
-#         headless=True \
-#         test=True \
-#         num_envs=$num_envs \
-#         task.env.printNumSuccesses=True \
-#         task.experiment_dir=${exp_dir} \
-#         task.experiment=base #\
-#         # train.params.config.player.games_num=$num_games 
+timeout $timeout \
+    python $main_dir/train.py \
+        task=AllegroHandDextremeADRFinetuningResidualActions \
+        task.onnx_noise_gen_checkpoint=exported_models/AllegroHandAdversarialObservationsAndActions.onnx \
+        base_checkpoint=exported_models/AllegroHandADR.onnx \
+        checkpoint=${checkpoint} \
+        headless=True \
+        test=True \
+        num_envs=$num_envs \
+        task.env.printNumSuccesses=True \
+        task.experiment_dir=${exp_dir} \
+        task.experiment=base \
+        task.env.adv_noise_prob=0
+        # train.params.config.player.games_num=$num_games 
+
 
 for(( i=0; i<$len; i++ ))
 do
     echo "Sensitivity Analysis for noise in" ${properties[i]}
     timeout $timeout \
         python $main_dir/train.py \
-            task=AllegroHandDextremeADR \
+            task=AllegroHandDextremeADRFinetuningResidualActions \
+            task.onnx_noise_gen_checkpoint=exported_models/AllegroHandAdversarialObservationsAndActions.onnx \
+            base_checkpoint=exported_models/AllegroHandADR.onnx \
             checkpoint=${checkpoint} \
             headless=True \
             test=True \
@@ -104,11 +112,31 @@ do
             task.env.printNumSuccesses=True \
             task.experiment_dir=${exp_dir} \
             task.experiment="${properties[i]} ${min_value[i]} ${max_value[i]}" \
-            task.env.${properties[i]}=[${min_value[i]},${max_value[i]}] #\
-            # task.experiment="${properties[i]} ${value[i]}" \
-            # task.env.${properties[i]}=${value[i]} #\
-            # task.experiment="${properties[i]} ${min_value[i]} ${max_value[i]}" \
-            # task.task.adr.params.${properties[i]}.init_range=[${min_value[i]},${max_value[i]}] #\
+            task.task.adr.params.${properties[i]}.init_range=[${min_value[i]},${max_value[i]}] \
+            task.env.adv_noise_prob=0
             # train.params.config.player.games_num=$num_games 
 
 done
+
+
+# for(( i=0; i<$len; i++ ))
+# do
+#     echo "Sensitivity Analysis for noise in" ${properties[i]}
+#     timeout $timeout \
+#         python $main_dir/train.py \
+#             task=AllegroHandDextremeADR \
+#             checkpoint=${checkpoint} \
+#             headless=True \
+#             test=True \
+#             num_envs=$num_envs \
+#             task.env.printNumSuccesses=True \
+#             task.experiment_dir=${exp_dir} \
+#             task.experiment="${properties[i]} ${min_value[i]} ${max_value[i]}" \
+#             task.env.${properties[i]}=[${min_value[i]},${max_value[i]}] #\
+#             # task.experiment="${properties[i]} ${value[i]}" \
+#             # task.env.${properties[i]}=${value[i]} #\
+#             # task.experiment="${properties[i]} ${min_value[i]} ${max_value[i]}" \
+#             # task.task.adr.params.${properties[i]}.init_range=[${min_value[i]},${max_value[i]}] #\
+#             # train.params.config.player.games_num=$num_games 
+
+# done

@@ -45,6 +45,7 @@ from isaacgym import gymtorch
 import onnxruntime as ort
 
 import matplotlib.pyplot as plt
+import pickle
 
 debug = False
 
@@ -278,7 +279,12 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
 		super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
-		
+
+		if not cfg["test"]:
+			with open(cfg.adr_params_file, "rb") as fp:
+				self.adr_params = pickle.load(fp)
+ 
+
 		self.realtime_plots = self.cfg["plot_delta_actions"]
 		if self.realtime_plots:
 			if self.num_envs <= 4:
@@ -290,7 +296,7 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 					ax.set_title(f"dof_{i+1} Delta Action")
 
 				self.rt_plot_fig_actions.show()
-				plt.pause(0.0001)
+				# plt.pause(0.0001)
 
 				self.rt_plot_actions_buffer = np.zeros((1, self.num_envs, 16))
 				self.rt_plot_frame_buffer = np.zeros(1)
@@ -369,13 +375,12 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 
 				for i in range(self.num_envs):
 					for j, ax in enumerate(self.rt_plot_ax_actions.flat):
-						ax.plot(self.rt_plot_frame_buffer[:], self.rt_plot_actions_buffer[:, i, j])
-
+						# ax.plot(self.rt_plot_frame_buffer[:], self.rt_plot_actions_buffer[:, i, j])
+						ax.plot(self.rt_plot_frame_buffer[-min(50, self.rt_plot_frame_buffer.shape[0]):-1], self.rt_plot_actions_buffer[-min(50, self.rt_plot_frame_buffer.shape[0]):-1, i, j])
 				for i, ax in enumerate(self.rt_plot_ax_actions.flat):
 					# ax.set(xlabel='frame')
 					ax.set_title(f"dof_{i+1} Delta Action")
-
-				plt.pause(0.0001)
+				plt.pause(0.00000000001)
 
 	def compute_reward(self, actions):
 		super().compute_reward(self.delta_actions)
