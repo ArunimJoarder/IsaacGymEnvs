@@ -452,7 +452,7 @@ class AllegroHandDextreme(ADRVecTask):
             self.rew_buf, self.reset_buf, self.reset_goal_buf, self.progress_buf, self.hold_count_buf, self.cur_targets, self.prev_targets,
             self.dof_vel, self.successes, self.consecutive_successes, self.max_episode_length,
             self.object_pos, self.object_rot, self.goal_pos, self.goal_rot, self.dist_reward_scale, self.rot_reward_scale, self.rot_eps,
-            actions, self.action_penalty_scale, self.action_delta_penalty_scale,
+            self.actions, self.action_penalty_scale, self.action_delta_penalty_scale,
             self.success_tolerance, self.reach_goal_bonus, self.fall_dist, self.fall_penalty,
             self.max_consecutive_successes, self.av_factor, self.num_success_hold_steps
         )
