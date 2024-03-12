@@ -52,8 +52,8 @@ debug = False
 class BaseNoiseGeneratorPlugin:
 	def __init__(self, onnx_model_checkpoint, device) -> None:
 		sess_options = ort.SessionOptions()
-		# sess_options.inter_op_num_threads = 4
-		# sess_options.intra_op_num_threads = 4
+		# sess_options.inter_op_num_threads = 8
+		# sess_options.intra_op_num_threads = 8
 		# sess_options.log_severity_level = 0
 		self._model = ort.InferenceSession(onnx_model_checkpoint, sess_options=sess_options, providers=["CUDAExecutionProvider"])
 		if debug: print("[TASK-Finetuning][DEBUG] ONNX model input names:", [o.name for o in self._model.get_inputs()])
@@ -280,8 +280,8 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
 		super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
 
-		self.delta_actions = torch.zeros(self.num_envs, self.num_dofs)
-		self.prev_delta_actions = torch.zeros_like(self.delta_actions)
+		self.delta_actions = torch.zeros(self.num_envs, self.num_dofs, device=self.device)
+		self.prev_delta_actions = torch.zeros_like(self.delta_actions, device=self.device)
 
 		if not cfg["test"]:
 			with open(cfg["adr_params_file"], "rb") as fp:
@@ -336,8 +336,9 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 
 		self.prev_delta_actions = self.delta_actions
 		self.delta_actions = delta_actions
+		# self.delta_actions = 2.0 * delta_actions
 
-		actions = self.base_actions + delta_actions
+		actions = self.base_actions + self.delta_actions
 		actions = torch.clamp(actions, -1.0, 1.0)
 		if self.use_adv_noise and "action_noise" in self.noises.keys():
 			actions = actions + self.noises["action_noise"]
