@@ -67,7 +67,7 @@ def analyze(dataset: Dict[str, Dict[str, NDArray[np.float16]]],
 		var[tag] = var_tag
 
 	if print_flag:
-		prop_space = 37
+		prop_space = 155
 		topline = "".center(prop_space + 6, "_")
 		headline = "||" + "".center(prop_space + 6) + "||"
 		fillline = "||" + "".center(prop_space + 6, "-") + "||"
