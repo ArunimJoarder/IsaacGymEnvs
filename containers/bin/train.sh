@@ -14,11 +14,12 @@ export run_cmd="python3 /deXtreme/IsaacGymEnvs/isaacgymenvs/train.py \
                   wandb_entity=joarder-arunim-github \
                   headless=True \
                   num_envs=4096 \
-                  experiment=euler_ft_delta_f_act_rew_adv_prob_0.00_-0.001_action_pen_-0.2_delta_action_pen_adr_ranges_4096_10000_iters \
+                  experiment=euler_ft_delta_adv_prob_0.00_-0.5_action_pen_-0.2_delta_action_pen_adr_ranges_4096_10000_iters \
                   task.experiment_dir=while_training \
                   task.env.printNumSuccesses=True \
+                  task.env.deltaActionsScale=1.0 \
                   task.env.adv_noise_prob=0.00 \
-                  task.env.actionPenaltyScale=-0.001\
+                  task.env.actionPenaltyScale=-0.5\
                   task.env.actionDeltaPenaltyScale=-0.2 \
                   max_iterations=10000"
 

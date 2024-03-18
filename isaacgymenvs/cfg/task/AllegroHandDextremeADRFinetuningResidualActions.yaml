@@ -31,6 +31,7 @@ env:
   discreteActions: False
 
   adv_noise_prob: 0.1
+  deltaActionsScale: 1.0
 
   stiffnessScale: 1.0
   forceLimitScale: 1.0

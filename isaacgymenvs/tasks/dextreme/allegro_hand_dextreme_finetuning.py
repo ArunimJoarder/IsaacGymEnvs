@@ -313,6 +313,7 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 		self.base_controller_checkpoint = self.cfg["onnx_model_checkpoint"]
 		self.noise_generator_checkpoint = self.cfg["onnx_noise_gen_checkpoint"]
 		self.adv_noise_prob = self.cfg["env"]["adv_noise_prob"]
+		self.delta_action_scale = self.cfg["env"]["deltaActionsScale"]
 
 	def get_num_obs_dict(self, num_dofs):
 		num_obs_dict = AllegroHandDextremeADR.get_num_obs_dict(self, num_dofs)
@@ -336,9 +337,8 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 
 		self.prev_delta_actions = self.delta_actions
 		self.delta_actions = delta_actions
-		# self.delta_actions = 2.0 * delta_actions
 
-		actions = self.base_actions + self.delta_actions
+		actions = self.base_actions + self.delta_actions * self.delta_action_scale
 		actions = torch.clamp(actions, -1.0, 1.0)
 		if self.use_adv_noise and "action_noise" in self.noises.keys():
 			actions = actions + self.noises["action_noise"]
@@ -376,7 +376,7 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 				for ax in self.rt_plot_ax_actions.flat:
 					ax.cla()
 				self.rt_plot_frame_buffer = np.vstack([self.rt_plot_frame_buffer, self.frame])
-				self.rt_plot_actions_buffer = np.vstack([self.rt_plot_actions_buffer, np.array([self.delta_actions.cpu().numpy(),])])
+				self.rt_plot_actions_buffer = np.vstack([self.rt_plot_actions_buffer, np.array([self.delta_actions.cpu().numpy(),]) * self.delta_action_scale])
 
 				for i in range(self.num_envs):
 					for j, ax in enumerate(self.rt_plot_ax_actions.flat):

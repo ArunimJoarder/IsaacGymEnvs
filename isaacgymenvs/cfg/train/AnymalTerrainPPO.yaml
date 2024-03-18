@@ -44,6 +44,8 @@ params:
   load_path: ${...checkpoint} # path to the checkpoint to load
 
   config:
+    train_dir: runs
+
     name: ${resolve_default:AnymalTerrain,${....experiment}}
     full_experiment_name: ${.name}
     env_name: rlgpu

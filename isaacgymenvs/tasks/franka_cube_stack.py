@@ -144,6 +144,10 @@ class FrankaCubeStack(VecTask):
 
         super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
+        self.extras["custom"] = {}
+        self.stack_buf = torch.zeros(
+            self.num_envs, device=self.device, dtype=torch.bool)
+        
         # Franka defaults
         self.franka_default_dof_pos = to_torch(
             [0, 0.1963, 0, -2.6180, 0, 2.9416, 0.7854, 0.035, 0.035], device=self.device
@@ -443,7 +447,7 @@ class FrankaCubeStack(VecTask):
         self._update_states()
 
     def compute_reward(self, actions):
-        self.rew_buf[:], self.reset_buf[:] = compute_franka_reward(
+        self.rew_buf[:], self.reset_buf[:], self.stack_buf = compute_franka_reward(
             self.reset_buf, self.progress_buf, self.actions, self.states, self.reward_settings, self.max_episode_length
         )
 
@@ -509,6 +513,8 @@ class FrankaCubeStack(VecTask):
         self.gym.set_actor_root_state_tensor_indexed(
             self.sim, gymtorch.unwrap_tensor(self._root_state),
             gymtorch.unwrap_tensor(multi_env_ids_cubes_int32), len(multi_env_ids_cubes_int32))
+
+        self.extras["custom"]["successful_stacks"] = self.stack_buf[env_ids].sum().div(len(self.stack_buf[env_ids]))
 
         self.progress_buf[env_ids] = 0
         self.reset_buf[env_ids] = 0
@@ -698,7 +704,7 @@ class FrankaCubeStack(VecTask):
 def compute_franka_reward(
     reset_buf, progress_buf, actions, states, reward_settings, max_episode_length
 ):
-    # type: (Tensor, Tensor, Tensor, Dict[str, Tensor], Dict[str, float], float) -> Tuple[Tensor, Tensor]
+    # type: (Tensor, Tensor, Tensor, Dict[str, Tensor], Dict[str, float], float) -> Tuple[Tensor, Tensor, Tensor]
 
     # Compute per-env physical parameters
     target_height = states["cubeB_size"] + states["cubeA_size"] / 2.0
@@ -744,4 +750,4 @@ def compute_franka_reward(
     # Compute resets
     reset_buf = torch.where((progress_buf >= max_episode_length - 1) | (stack_reward > 0), torch.ones_like(reset_buf), reset_buf)
 
-    return rewards, reset_buf
+    return rewards, reset_buf, stack_reward

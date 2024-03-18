@@ -27,6 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from .ant import Ant
+from .ant_finetuning import AntFinetuningResidualActions
 from .anymal import Anymal
 from .anymal_terrain import AnymalTerrain
 from .ball_balance import BallBalance
@@ -71,7 +72,6 @@ def resolve_allegro_kuka(cfg, *args, **kwargs):
     )
 
     if subtask_name not in subtask_map:
-        print("!!!!!")
         raise ValueError(f"Unknown subtask={subtask_name} in {subtask_map}")
 
     return subtask_map[subtask_name](cfg, *args, **kwargs)
@@ -120,5 +120,6 @@ isaacgym_task_map = {
     "AllegroHandAdversarialObservationsAndActions": AllegroHandDextremeAdversarialObservationsAndActions,
     "AllegroHandAdversarialObservations": AllegroHandDextremeAdversarialObservations,
     "AllegroHandADRFinetuning": AllegroHandDextremeADRFinetuning,
-    "AllegroHandADRFinetuningResidualActions": AllegroHandDextremeADRFinetuningResidualActions
+    "AllegroHandADRFinetuningResidualActions": AllegroHandDextremeADRFinetuningResidualActions,
+    "AntFinetuningResidualActions": AntFinetuningResidualActions
 }
