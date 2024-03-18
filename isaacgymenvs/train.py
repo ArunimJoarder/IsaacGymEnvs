@@ -275,8 +275,9 @@ def launch_rlg_hydra(cfg: DictConfig):
                 input_dict["is_train"] = False
                 result = self.model(input_dict)
                 mu = result["mus"]
-                rnn_states = result["rnn_states"]
-                return mu, rnn_states
+                # rnn_states = result["rnn_states"]
+                return mu
+                # return mu, rnn_states
 
         if not cfg.test:
             agent = runner.create_player()
@@ -287,17 +288,20 @@ def launch_rlg_hydra(cfg: DictConfig):
         
         inputs = {
             'obs' : torch.zeros((1,) + agent.obs_shape).to(agent.device),
-            'rnn_states' : [torch.zeros((1,1,) + (256,)).to(agent.device), torch.zeros((1,1,) + (256,)).to(agent.device)],
-        }        
+            # 'rnn_states' : [torch.zeros((1,1,) + (256,)).to(agent.device), torch.zeros((1,1,) + (256,)).to(agent.device)],
+        }  
         if debug:
             print("[TRAIN][DEBUG] Input Obs shape:", inputs["obs"].shape)
-            for e in inputs["rnn_states"]:
-                print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
+            # for e in inputs["rnn_states"]:
+            #     print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
 
         with torch.no_grad():
             adapter = flatten.TracingAdapter(ModelWrapper(agent.model), inputs, allow_non_tensor=True)
             traced = torch.jit.trace(adapter, adapter.flattened_inputs, check_trace=False)
             flattened_outputs = traced(*adapter.flattened_inputs)
+
+        # print(adapter.flattened_inputs)
+        # print(flattened_outputs)
 
         if debug:
             for i, e in enumerate(adapter.flattened_inputs):
@@ -313,9 +317,12 @@ def launch_rlg_hydra(cfg: DictConfig):
                           adapter.flattened_inputs,
                           model_filename,
                           verbose=True,
-                          input_names=['obs', 'out_state', 'hidden_state'],
-                          output_names=['mu', 'out_state', 'hidden_state'],
-                          dynamic_axes={"obs": {0: "batch_size"}, "out_state": {1: "batch_size"}, "hidden_state": {1: "batch_size"}})
+                          input_names=['obs'],
+                          output_names=['mu'],
+                          dynamic_axes={"obs": {0: "batch_size"}})
+                        #   input_names=['obs', 'out_state', 'hidden_state'],
+                        #   output_names=['mu', 'out_state', 'hidden_state'],
+                        #   dynamic_axes={"obs": {0: "batch_size"}, "out_state": {1: "batch_size"}, "hidden_state": {1: "batch_size"}})
         print("[TRAIN] ONNX model exported successfully")
 
         print("[TRAIN] Loading ONNX model")
