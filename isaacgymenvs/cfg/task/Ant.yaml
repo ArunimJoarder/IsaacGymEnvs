@@ -3,12 +3,17 @@ name: Ant
 
 physics_engine: ${..physics_engine}
 
+experiment_dir: 'default'
+experiment: ${resolve_default:test,${..experiment}}
+
 # if given, will override the device setting in gym.
 env:
   numEnvs: ${resolve_default:4096,${...num_envs}}
   envSpacing: 5
   episodeLength: 1000
   enableDebugVis: False
+
+  printStats: False
 
   clipActions: 1.0
 
