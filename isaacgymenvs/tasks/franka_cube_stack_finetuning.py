@@ -192,6 +192,7 @@ class FrankaCubeStackFinetuningResidualActions(FrankaCubeStack, VecTask):
 		self.delta_actions = delta_actions
 		self.base_actions = self.base_controller.get_action(self.base_obs_dict)
 		actions = self.base_actions + self.delta_actions
+		actions = torch.clamp(actions, -self.clip_actions, self.clip_actions)
 		FrankaCubeStack.pre_physics_step(self, actions)
 
 	def compute_observations(self):
