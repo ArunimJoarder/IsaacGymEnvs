@@ -30,6 +30,7 @@ from .ant import Ant
 from .ant_finetuning import AntFinetuningResidualActions
 from .anymal import Anymal
 from .anymal_terrain import AnymalTerrain
+from .anymal_terrain_finetuning import AnymalTerrainFinetuningResidualActions
 from .ball_balance import BallBalance
 from .cartpole import Cartpole 
 from .factory.factory_task_gears import FactoryTaskGears
@@ -123,5 +124,6 @@ isaacgym_task_map = {
     "AllegroHandADRFinetuning": AllegroHandDextremeADRFinetuning,
     "AllegroHandADRFinetuningResidualActions": AllegroHandDextremeADRFinetuningResidualActions,
     "AntFinetuningResidualActions": AntFinetuningResidualActions,
-    "FrankaCubeStackFinetuningResidualActions": FrankaCubeStackFinetuningResidualActions
+    "FrankaCubeStackFinetuningResidualActions": FrankaCubeStackFinetuningResidualActions,
+    "AnymalTerrainFinetuningResidualActions": AnymalTerrainFinetuningResidualActions
 }

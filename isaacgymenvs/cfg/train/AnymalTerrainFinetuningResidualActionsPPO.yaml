@@ -23,7 +23,7 @@ params:
         fixed_sigma: True
 
     mlp:
-      units: [512, 256, 128]
+      units: [128, 64, 32]
       activation: elu
       d2rl: False
 
@@ -48,7 +48,7 @@ params:
     player:
       games_num: 100000
 
-    name: ${resolve_default:AnymalTerrain,${....experiment}}
+    name: ${resolve_default:AnymalTerrainFinetuningResidualActions,${....experiment}}
     full_experiment_name: ${.name}
     env_name: rlgpu
     ppo: True
