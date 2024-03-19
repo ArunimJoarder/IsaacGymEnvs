@@ -64,6 +64,8 @@ class Ant(VecTask):
         self.plane_dynamic_friction = self.cfg["env"]["plane"]["dynamicFriction"]
         self.plane_restitution = self.cfg["env"]["plane"]["restitution"]
 
+        self.print_success_stat = self.cfg["env"]["printStats"]
+
         self.cfg["env"]["numObservations"] = 60
         self.cfg["env"]["numActions"] = 8
 

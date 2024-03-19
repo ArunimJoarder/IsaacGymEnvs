@@ -35,6 +35,8 @@ params:
 
   config:
     train_dir: runs
+    player:
+      games_num: 100000
 
     name: ${resolve_default:FrankaCubeStack,${....experiment}}
     full_experiment_name: ${.name}

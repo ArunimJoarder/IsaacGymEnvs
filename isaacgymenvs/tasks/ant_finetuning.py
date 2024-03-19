@@ -166,7 +166,7 @@ class AntFinetuningResidualActions(Ant, VecTask):
 	def pre_physics_step(self, delta_actions):
 		self.delta_actions = delta_actions
 		self.base_actions = self.base_controller.get_action(self.base_obs_dict)
-		actions = self.base_actions + 0 * self.delta_actions
+		actions = self.base_actions + self.delta_actions
 		actions = torch.clamp(actions, -self.clip_actions, self.clip_actions)
 		
 		Ant.pre_physics_step(self, actions)
