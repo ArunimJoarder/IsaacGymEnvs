@@ -23,7 +23,7 @@ params:
         fixed_sigma: True
 
     mlp:
-      units: [128, 64, 32]
+      units: [512, 256, 128]
       activation: elu
       d2rl: False
 
@@ -80,7 +80,7 @@ params:
     bounds_loss_coef: 0.
 
     max_epochs: ${resolve_default:1500,${....max_iterations}}
-    save_best_after: 100
+    save_best_after: 500
     score_to_win: 20000
-    save_frequency: 50
+    save_frequency: 500
     print_stats: True
