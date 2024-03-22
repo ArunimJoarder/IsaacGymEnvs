@@ -7,13 +7,16 @@
 # --warp: run command in ''. Does not work with variables (that's why run.sh is needed).
 
 export run_cmd="python3 /deXtreme/IsaacGymEnvs/isaacgymenvs/train.py \
-                  task=FrankaCubeStack \
+                  task=FrankaCubeStackFinetuningResidualActions \
+                  base_checkpoint=exported_models/FrankaCubeStack.onnx \
                   wandb_activate=True \
-                  wandb_entity=joarder-arunim-github \
+                  wandb_entity=caviar-garnish \
                   headless=True \
-                  experiment=euler_franka_cube_stack_base"
+                  experiment=euler_franka_cube_stack_delta_ft_bigger_network_10000_iters \
+                  max_iterations=10000"
 
 # python3 train.py task=Ant wandb_activate=True wandb_entity=joarder-arunim-github headless=True experiment=euler_ant_base
+# checkpoint=runs/euler_anymal_terrain_4500_iters_15-13-54-25/nn/last_euler_anymal_terrain_4500_iters_ep_4500_rew__19.31_.pth \
 
 export custom_flags="--nv --writable -B /cluster/home/$USER/git/IsaacGymEnvs/:/deXtreme/IsaacGymEnvs"
 
