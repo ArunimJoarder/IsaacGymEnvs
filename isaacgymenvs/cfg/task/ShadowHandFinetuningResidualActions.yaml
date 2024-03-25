@@ -16,6 +16,8 @@ env:
   enableDebugVis: False
   aggregateMode: 1
 
+  printEvalStats: False
+
   clipObservations: 5.0
   clipActions: 1.0
 

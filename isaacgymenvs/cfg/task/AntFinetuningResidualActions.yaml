@@ -16,6 +16,7 @@ env:
   enableDebugVis: False
 
   printStats: False
+  printEvalStats: False
 
   clipActions: 1.0
 

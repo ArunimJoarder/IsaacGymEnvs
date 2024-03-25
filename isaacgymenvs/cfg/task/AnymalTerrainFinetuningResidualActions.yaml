@@ -15,6 +15,8 @@ env:
   envSpacing: 3.  # [m]
   enableDebugVis: False
 
+  printEvalStats: False
+
   terrain:
     terrainType: trimesh # none, plane, or trimesh
     staticFriction: 1.0  # [-]

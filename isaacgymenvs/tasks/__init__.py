@@ -29,6 +29,7 @@
 from .ant import Ant
 from .ant_finetuning import AntFinetuningResidualActions
 from .anymal import Anymal
+from .anymal_finetuning import AnymalFinetuningResidualActions
 from .anymal_terrain import AnymalTerrain
 from .anymal_terrain_finetuning import AnymalTerrainFinetuningResidualActions
 from .ball_balance import BallBalance
@@ -42,11 +43,14 @@ from .franka_cabinet import FrankaCabinet
 from .franka_cube_stack import FrankaCubeStack
 from .franka_cube_stack_finetuning import FrankaCubeStackFinetuningResidualActions
 from .humanoid import Humanoid
+from .humanoid_finetuning import HumanoidFinetuningResidualActions
 from .humanoid_amp import HumanoidAMP
 from .ingenuity import Ingenuity
 from .quadcopter import Quadcopter
 from .shadow_hand import ShadowHand
+from .shadow_hand_finetuning import ShadowHandFinetuningResidualActions
 from .allegro_hand import AllegroHand
+from .allegro_hand_finetuning import AllegroHandFinetuningResidualActions
 from .dextreme.allegro_hand_dextreme import AllegroHandDextremeManualDR, AllegroHandDextremeADR
 from .dextreme.allegro_hand_dextreme_adversarial import AllegroHandDextremeAdversarialActions, \
                                                         AllegroHandDextremeAdversarialObservationsAndActions, \
@@ -125,5 +129,9 @@ isaacgym_task_map = {
     "AllegroHandADRFinetuningResidualActions": AllegroHandDextremeADRFinetuningResidualActions,
     "AntFinetuningResidualActions": AntFinetuningResidualActions,
     "FrankaCubeStackFinetuningResidualActions": FrankaCubeStackFinetuningResidualActions,
-    "AnymalTerrainFinetuningResidualActions": AnymalTerrainFinetuningResidualActions
+    "AnymalTerrainFinetuningResidualActions": AnymalTerrainFinetuningResidualActions,
+    "AnymalFinetuningResidualActions": AnymalFinetuningResidualActions,
+    "AllegroHandFinetuningResidualActions": AllegroHandFinetuningResidualActions,
+    "ShadowHandFinetuningResidualActions": ShadowHandFinetuningResidualActions,
+    "HumanoidFinetuningResidualActions": HumanoidFinetuningResidualActions
 }

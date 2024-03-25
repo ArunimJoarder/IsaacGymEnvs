@@ -248,6 +248,9 @@ class ShadowHandFinetuningResidualActions(ShadowHand, VecTask):
 		self.base_obs_dict["obs"] = torch.clamp(self.base_obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 		self.base_controller_checkpoint = self.cfg["onnx_model_checkpoint"]
 		self.base_controller = BaseControllerPlugin(self.base_controller_checkpoint, self.device)
+        
+		self.print_eval_stats = self.cfg["env"]["printEvalStats"]
+		self.init_summary_writer()
 
 	def pre_physics_step(self, delta_actions):
 		self.delta_actions = delta_actions
@@ -258,7 +261,7 @@ class ShadowHandFinetuningResidualActions(ShadowHand, VecTask):
 
 	def compute_observations(self):
 		ShadowHand.compute_observations(self)
-		self.base_obs_buf = self.obs_buf
+		self.base_obs_buf = self.obs_buf[:, :self.num_obs - self.num_actions]
 		self.base_obs_dict["obs"] = torch.clamp(self.base_obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 
 		self.obs_buf[:, -self.num_actions:] = self.base_actions
