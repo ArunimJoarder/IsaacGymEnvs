@@ -186,6 +186,9 @@ class AnymalFinetuningResidualActions(Anymal, VecTask):
 		self.gravity_vec = to_torch(get_axis_params(-1., self.up_axis_idx), device=self.device).repeat((self.num_envs, 1))
 		self.actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
 
+		self.print_eval_stats = self.cfg["env"]["printEvalStats"]
+		self.init_summary_writer()
+
 		self.reset_idx(torch.arange(self.num_envs, device=self.device))
 
 

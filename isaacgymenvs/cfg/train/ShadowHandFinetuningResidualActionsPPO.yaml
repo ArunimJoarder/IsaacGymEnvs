@@ -23,7 +23,7 @@ params:
         fixed_sigma: True
 
     mlp:
-      units: [512, 512, 256, 128]
+      units: [128, 128, 64, 32]
       activation: elu
       d2rl: False
 
@@ -37,8 +37,6 @@ params:
 
   config:
     train_dir: runs
-    player:
-      games_num: 100000
 
     name: ${resolve_default:ShadowHandFinetuningResidualActions,${....experiment}}
     full_experiment_name: ${.name}

@@ -163,6 +163,9 @@ class AntFinetuningResidualActions(Ant, VecTask):
 		self.base_controller_checkpoint = self.cfg["onnx_model_checkpoint"]
 		self.base_controller = BaseControllerPlugin(self.base_controller_checkpoint, self.device)
 
+		self.print_eval_stats = self.cfg["env"]["printEvalStats"]
+		self.init_summary_writer()
+
 	def pre_physics_step(self, delta_actions):
 		self.delta_actions = delta_actions
 		self.base_actions = self.base_controller.get_action(self.base_obs_dict)
