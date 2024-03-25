@@ -142,8 +142,26 @@ class Anymal(VecTask):
         self.initial_root_states[:] = to_torch(self.base_init_state, device=self.device, requires_grad=False)
         self.gravity_vec = to_torch(get_axis_params(-1., self.up_axis_idx), device=self.device).repeat((self.num_envs, 1))
         self.actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
+        
+        self.print_eval_stats = self.cfg["env"]["printEvalStats"]
+        self.init_summary_writer()
 
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
+
+    def init_summary_writer(self):
+        self.cumulative_reward = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        if self.print_eval_stats:                        
+            from tensorboardX import SummaryWriter
+            self.eval_summary_dir = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "eval_summaries")
+            if self.cfg["experiment_dir"] != '':
+                self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment_dir"])
+            if self.cfg["experiment"] != '':
+                self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment"])
+            # remove the old directory if it exists
+            if os.path.exists(self.eval_summary_dir):
+                import shutil
+                shutil.rmtree(self.eval_summary_dir)
+            self.eval_summaries = SummaryWriter(self.eval_summary_dir, flush_secs=3)
 
     def create_sim(self):
         self.up_axis_idx = 2 # index of up axis: Y=1, Z=2
@@ -238,6 +256,14 @@ class Anymal(VecTask):
         self.compute_observations()
         self.compute_reward(self.actions)
 
+    def write_summary(self):
+        reset_env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        if len(reset_env_ids) > 0:
+            if self.control_steps % 10000:
+                mean_reward = self.cumulative_reward[reset_env_ids].mean().item() * 1.0
+                # print(reset_env_ids, mean_reward, self.control_steps)
+                self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)
+
     def compute_reward(self, actions):
         self.rew_buf[:], self.reset_buf[:] = compute_anymal_reward(
             # tensors
@@ -253,6 +279,11 @@ class Anymal(VecTask):
             self.base_index,
             self.max_episode_length,
         )
+
+
+        self.cumulative_reward = self.cumulative_reward + self.rew_buf
+        if self.print_eval_stats:
+            self.write_summary()
 
     def compute_observations(self):
         self.gym.refresh_dof_state_tensor(self.sim)  # done in step
@@ -302,6 +333,8 @@ class Anymal(VecTask):
 
         self.progress_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
+
+        self.cumulative_reward[env_ids] = 0
 
 #####################################################################
 ###=========================jit functions=========================###

@@ -157,8 +157,26 @@ class AnymalTerrain(VecTask):
                              "orient": torch_zeros(), "torques": torch_zeros(), "joint_acc": torch_zeros(), "base_height": torch_zeros(),
                              "air_time": torch_zeros(), "collision": torch_zeros(), "stumble": torch_zeros(), "action_rate": torch_zeros(), "hip": torch_zeros()}
 
+        self.print_eval_stats = self.cfg["env"]["printEvalStats"]
+        self.init_summary_writer()
+
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.init_done = True
+        
+    def init_summary_writer(self):
+        self.cumulative_reward = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        if self.print_eval_stats:                        
+            from tensorboardX import SummaryWriter
+            self.eval_summary_dir = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "eval_summaries")
+            if self.cfg["experiment_dir"] != '':
+                self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment_dir"])
+            if self.cfg["experiment"] != '':
+                self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment"])
+            # remove the old directory if it exists
+            if os.path.exists(self.eval_summary_dir):
+                import shutil
+                shutil.rmtree(self.eval_summary_dir)
+            self.eval_summaries = SummaryWriter(self.eval_summary_dir, flush_secs=3)
 
     def create_sim(self):
         self.up_axis_idx = 2 # index of up axis: Y=1, Z=2
@@ -381,6 +399,19 @@ class AnymalTerrain(VecTask):
         self.episode_sums["base_height"] += rew_base_height
         self.episode_sums["hip"] += rew_hip
 
+
+        self.cumulative_reward = self.cumulative_reward + self.rew_buf
+        if self.print_eval_stats:
+            self.write_summary()
+
+    def write_summary(self):
+        reset_env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        if len(reset_env_ids) > 0:
+            if self.control_steps % 100:
+                mean_reward = self.cumulative_reward[reset_env_ids].mean().item() * 1.0
+                # print(reset_env_ids, mean_reward, self.control_steps)
+                self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)
+
     def reset_idx(self, env_ids):
         positions_offset = torch_rand_float(0.5, 1.5, (len(env_ids), self.num_dof), device=self.device)
         velocities = torch_rand_float(-0.1, 0.1, (len(env_ids), self.num_dof), device=self.device)
@@ -423,6 +454,8 @@ class AnymalTerrain(VecTask):
             self.extras["episode"]['rew_' + key] = torch.mean(self.episode_sums[key][env_ids]) / self.max_episode_length_s
             self.episode_sums[key][env_ids] = 0.
         self.extras["episode"]["terrain_level"] = torch.mean(self.terrain_levels.float())
+
+        self.cumulative_reward[env_ids] = 0
 
     def update_terrain_level(self, env_ids):
         if not self.init_done or not self.curriculum:

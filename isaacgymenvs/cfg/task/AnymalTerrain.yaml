@@ -3,12 +3,17 @@ name: AnymalTerrain
 
 physics_engine: 'physx'
 
+experiment_dir: 'default'
+experiment: ${resolve_default:test,${..experiment}}
+
 env:
   numEnvs: ${resolve_default:4096,${...num_envs}}
   numObservations: 188
   numActions: 12
   envSpacing: 3.  # [m]
   enableDebugVis: False
+
+  printEvalStats: False
 
   terrain:
     terrainType: trimesh # none, plane, or trimesh

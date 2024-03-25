@@ -36,6 +36,8 @@ params:
   load_path: ${...checkpoint} # path to the checkpoint to load
 
   config:
+    train_dir: runs
+
     name: ${resolve_default:ShadowHand,${....experiment}}
     full_experiment_name: ${.name}
     env_name: rlgpu
@@ -57,8 +59,8 @@ params:
     kl_threshold: 0.016
     score_to_win: 100000
     max_epochs: ${resolve_default:5000,${....max_iterations}}
-    save_best_after: 100
-    save_frequency: 200
+    save_best_after: 3000
+    save_frequency: 1000
     print_stats: True
     grad_norm: 1.0
     entropy_coef: 0.0

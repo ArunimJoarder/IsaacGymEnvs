@@ -36,6 +36,10 @@ params:
   load_path: ${...checkpoint} # path to the checkpoint to load
 
   config:
+    train_dir: runs
+    player:
+      games_num: 100000
+
     name: ${resolve_default:Anymal,${....experiment}}
     full_experiment_name: ${.name}
     env_name: rlgpu
@@ -67,7 +71,7 @@ params:
     bounds_loss_coef: 0.001
 
     max_epochs: ${resolve_default:1000,${....max_iterations}}
-    save_best_after: 200
+    save_best_after: 600
+    save_frequency: 200
     score_to_win: 20000
-    save_frequency: 50
     print_stats: True

@@ -3,6 +3,9 @@ name: ShadowHand
 
 physics_engine: ${..physics_engine}
 
+experiment_dir: 'default'
+experiment: ${resolve_default:test,${..experiment}}
+
 # if given, will override the device setting in gym.
 env: 
   numEnvs: ${resolve_default:16384,${...num_envs}}
@@ -10,6 +13,8 @@ env:
   episodeLength: 600
   enableDebugVis: False
   aggregateMode: 1
+
+  printEvalStats: False
 
   clipObservations: 5.0
   clipActions: 1.0
