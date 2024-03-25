@@ -1,10 +1,12 @@
 # used to create the object
-name: AllegroHand
+name: AllegroHandFinetuningResidualActions
 
 physics_engine: ${..physics_engine}
 
 experiment_dir: 'default'
 experiment: ${resolve_default:test,${..experiment}}
+
+onnx_model_checkpoint: ${resolve_default:exported_models/AllegroHand.onnx,${..base_checkpoint}}
 
 # if given, will override the device setting in gym.
 env: 
@@ -13,8 +15,6 @@ env:
   episodeLength: 600
   enableDebugVis: False
   aggregateMode: 1
-
-  printEvalStats: False
 
   clipObservations: 5.0
   clipActions: 1.0

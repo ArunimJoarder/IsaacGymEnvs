@@ -3,12 +3,17 @@ name: Anymal
 
 physics_engine: ${..physics_engine}
 
+experiment_dir: 'default'
+experiment: ${resolve_default:test,${..experiment}}
+
 env:
   numEnvs: ${resolve_default:4096,${...num_envs}}
   envSpacing: 4.  # [m]
 
   clipObservations: 5.0
   clipActions: 1.0
+
+  printEvalStats: False
 
   plane:
     staticFriction: 1.0  # [-]

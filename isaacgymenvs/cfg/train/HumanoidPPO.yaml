@@ -36,6 +36,10 @@ params:
   load_path: ${...checkpoint} # path to the checkpoint to load
 
   config:
+    train_dir: runs
+    player:
+      games_num: 100000
+
     name: ${resolve_default:Humanoid,${....experiment}}
     full_experiment_name: ${.name}
     env_name: rlgpu
@@ -55,8 +59,8 @@ params:
     kl_threshold: 0.008
     score_to_win: 20000
     max_epochs: ${resolve_default:1000,${....max_iterations}}
-    save_best_after: 200
-    save_frequency: 100
+    save_best_after: 500
+    save_frequency: 250
     print_stats: True
     grad_norm: 1.0
     entropy_coef: 0.0

@@ -1,10 +1,12 @@
 # used to create the object
-name: Humanoid
+name: HumanoidFinetuningResidualActions
 
 physics_engine: ${..physics_engine}
 
 experiment_dir: 'default'
 experiment: ${resolve_default:test,${..experiment}}
+
+onnx_model_checkpoint: ${resolve_default:exported_models/Humanoid.onnx,${..base_checkpoint}}
 
 # if given, will override the device setting in gym.
 env: 
@@ -12,8 +14,6 @@ env:
   envSpacing: 5
   episodeLength: 1000
   enableDebugVis: False
-
-  printEvalStats: False
 
   clipActions: 1.0
 

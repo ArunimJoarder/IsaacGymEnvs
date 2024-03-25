@@ -194,6 +194,24 @@ class AllegroHand(VecTask):
                                            * torch.rand(self.num_envs, device=self.device) + torch.log(self.force_prob_range[1]))
 
         self.rb_forces = torch.zeros((self.num_envs, self.num_bodies, 3), dtype=torch.float, device=self.device)
+        
+        self.print_eval_stats = self.cfg["env"]["printEvalStats"]
+        self.init_summary_writer()
+
+    def init_summary_writer(self):
+        self.cumulative_reward = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        if self.print_eval_stats:                        
+            from tensorboardX import SummaryWriter
+            self.eval_summary_dir = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "eval_summaries")
+            if self.cfg["experiment_dir"] != '':
+                self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment_dir"])
+            if self.cfg["experiment"] != '':
+                self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment"])
+            # remove the old directory if it exists
+            if os.path.exists(self.eval_summary_dir):
+                import shutil
+                shutil.rmtree(self.eval_summary_dir)
+            self.eval_summaries = SummaryWriter(self.eval_summary_dir, flush_secs=3)
 
     def create_sim(self):
         self.dt = self.sim_params.dt
@@ -381,6 +399,14 @@ class AllegroHand(VecTask):
         self.object_indices = to_torch(self.object_indices, dtype=torch.long, device=self.device)
         self.goal_object_indices = to_torch(self.goal_object_indices, dtype=torch.long, device=self.device)
 
+    def write_summary(self):
+        reset_env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        if len(reset_env_ids) > 0:
+            if self.control_steps % 10000:
+                mean_reward = self.cumulative_reward[reset_env_ids].mean().item() * 0.01
+                # print(reset_env_ids, mean_reward, self.control_steps)
+                self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)
+
     def compute_reward(self, actions):
         self.rew_buf[:], self.reset_buf[:], self.reset_goal_buf[:], self.progress_buf[:], self.successes[:], self.consecutive_successes[:] = compute_hand_reward(
             self.rew_buf, self.reset_buf, self.reset_goal_buf, self.progress_buf, self.successes, self.consecutive_successes,
@@ -402,6 +428,11 @@ class AllegroHand(VecTask):
             print("Direct average consecutive successes = {:.1f}".format(direct_average_successes/(self.total_resets + self.num_envs)))
             if self.total_resets > 0:
                 print("Post-Reset average consecutive successes = {:.1f}".format(self.total_successes/self.total_resets))
+
+
+        self.cumulative_reward = self.cumulative_reward + self.rew_buf
+        if self.print_eval_stats:
+            self.write_summary()
 
     def compute_observations(self):
         self.gym.refresh_dof_state_tensor(self.sim)
@@ -582,6 +613,8 @@ class AllegroHand(VecTask):
         self.progress_buf[env_ids] = 0
         self.reset_buf[env_ids] = 0
         self.successes[env_ids] = 0
+
+        self.cumulative_reward[env_ids] = 0
 
     def pre_physics_step(self, actions):
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
