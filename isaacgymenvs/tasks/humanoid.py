@@ -121,7 +121,7 @@ class Humanoid(VecTask):
         self.init_summary_writer()
 
     def init_summary_writer(self):
-        self.game_rewards = torch_ext.AverageMeter(1, 1000).to(self.device)
+        self.game_rewards = torch_ext.AverageMeter(1, 500).to(self.device)
         self.cumulative_rewards = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         if self.print_eval_stats:                        
             from tensorboardX import SummaryWriter
@@ -237,7 +237,7 @@ class Humanoid(VecTask):
         self.extremities = to_torch([5, 8], device=self.device, dtype=torch.long)
 
     def write_summary(self):
-        if self.control_steps % 100:
+        if self.control_steps % 1000:
             mean_reward = self.game_rewards.get_mean() * 0.01
             # print(reset_env_ids, mean_reward, self.control_steps)
             self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)

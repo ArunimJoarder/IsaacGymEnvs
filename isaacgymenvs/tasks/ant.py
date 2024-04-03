@@ -37,6 +37,7 @@ from isaacgym.gymtorch import *
 from isaacgymenvs.utils.torch_jit_utils import *
 from isaacgymenvs.tasks.base.vec_task import VecTask
 
+from rl_games.algos_torch import torch_ext
 
 class Ant(VecTask):
 
@@ -119,7 +120,8 @@ class Ant(VecTask):
         self.init_summary_writer()
 
     def init_summary_writer(self):
-        self.cumulative_reward = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self.game_rewards = torch_ext.AverageMeter(1, 500).to(self.device)
+        self.cumulative_rewards = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         if self.print_eval_stats:                        
             from tensorboardX import SummaryWriter
             self.eval_summary_dir = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "eval_summaries")
@@ -232,12 +234,10 @@ class Ant(VecTask):
             self.extremities_index[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.ant_handles[0], extremity_names[i])
 
     def write_summary(self):
-        reset_env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
-        if len(reset_env_ids) > 0:
-            if self.control_steps % 10000:
-                mean_reward = self.cumulative_reward[reset_env_ids].mean().item() * 0.01
-                # print(reset_env_ids, mean_reward, self.control_steps)
-                self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)
+        if self.control_steps % 1000:
+            mean_reward = self.game_rewards.get_mean() * 0.01
+            # print(reset_env_ids, mean_reward, self.control_steps)
+            self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)
 
     def compute_reward(self, actions):
         self.rew_buf[:], self.reset_buf[:] = compute_ant_reward(
@@ -257,7 +257,7 @@ class Ant(VecTask):
             self.max_episode_length
         )
 
-        self.cumulative_reward = self.cumulative_reward + self.rew_buf
+        self.cumulative_rewards = self.cumulative_rewards + self.rew_buf
         if self.print_eval_stats:
             self.write_summary()
 
@@ -310,7 +310,8 @@ class Ant(VecTask):
         self.progress_buf[env_ids] = 0
         self.reset_buf[env_ids] = 0
 
-        self.cumulative_reward[env_ids] = 0
+        self.game_rewards.update(self.cumulative_rewards[env_ids])
+        self.cumulative_rewards[env_ids] = 0
 
     def pre_physics_step(self, actions):
         self.actions = actions.clone().to(self.device)
