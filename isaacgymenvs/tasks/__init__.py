@@ -57,6 +57,7 @@ from .dextreme.allegro_hand_dextreme_adversarial import AllegroHandDextremeAdver
                                                         AllegroHandDextremeAdversarialObservations
 from .dextreme.allegro_hand_dextreme_finetuning import AllegroHandDextremeADRFinetuning, \
                                                        AllegroHandDextremeADRFinetuningResidualActions
+from .dextreme.allegro_hand_dextreme_adversarial_ensemble import AllegroHandDextremeAdversarialObservationsAndActionsEnsemble
 from .trifinger import Trifinger
 
 from .allegro_kuka.allegro_kuka_reorientation import AllegroKukaReorientation
@@ -133,5 +134,6 @@ isaacgym_task_map = {
     "AnymalFinetuningResidualActions": AnymalFinetuningResidualActions,
     "AllegroHandFinetuningResidualActions": AllegroHandFinetuningResidualActions,
     "ShadowHandFinetuningResidualActions": ShadowHandFinetuningResidualActions,
-    "HumanoidFinetuningResidualActions": HumanoidFinetuningResidualActions
+    "HumanoidFinetuningResidualActions": HumanoidFinetuningResidualActions,
+    "AllegroHandAdversarialObservationsAndActionsEnsemble": AllegroHandDextremeAdversarialObservationsAndActionsEnsemble
 }

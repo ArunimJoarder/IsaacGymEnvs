@@ -69,7 +69,7 @@ class BaseNoiseGeneratorPlugin:
 										  'goal_pose',
 										  'goal_relative_rot',
 										  'last_actions',
-										  'last_actions_full',
+										#   'last_actions_full',
 										  'stochastic_delay_params',
 										  'affine_params',
 										  'cube_random_params',
