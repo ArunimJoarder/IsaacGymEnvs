@@ -18,6 +18,8 @@ env:
   clipObservations: 5.0
   clipActions: 1.0
 
+  printEvalStats: False
+
   startPositionNoise: 0.25
   startRotationNoise: 0.785
   frankaPositionNoise: 0.0

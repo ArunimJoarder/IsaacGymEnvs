@@ -45,8 +45,8 @@ debug = False
 class BaseControllerPlugin:
 	def __init__(self, onnx_model_checkpoint, device) -> None:
 		sess_options = ort.SessionOptions()
-		# sess_options.inter_op_num_threads = 8
-		# sess_options.intra_op_num_threads = 8
+		sess_options.inter_op_num_threads = 8
+		sess_options.intra_op_num_threads = 8
 		# sess_options.log_severity_level = 0
 		self._model = ort.InferenceSession(onnx_model_checkpoint, sess_options=sess_options, providers=["CUDAExecutionProvider"])
 		self.device = device
@@ -173,6 +173,9 @@ class FrankaCubeStackFinetuningResidualActions(FrankaCubeStack, VecTask):
 		# Set control limits
 		self.cmd_limit = to_torch([0.1, 0.1, 0.1, 0.5, 0.5, 0.5], device=self.device).unsqueeze(0) if \
 		self.control_type == "osc" else self._franka_effort_limits[:7].unsqueeze(0)
+
+		self.print_eval_stats = self.cfg["env"]["printEvalStats"]
+		self.init_summary_writer()
 
 		# Reset all environments
 		self.reset_idx(torch.arange(self.num_envs, device=self.device))
