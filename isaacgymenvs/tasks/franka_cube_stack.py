@@ -36,6 +36,7 @@ from isaacgym import gymapi
 from isaacgymenvs.utils.torch_jit_utils import quat_mul, to_torch, tensor_clamp  
 from isaacgymenvs.tasks.base.vec_task import VecTask
 
+from rl_games.algos_torch import torch_ext
 
 @torch.jit.script
 def axisangle2quat(vec, eps=1e-6):
@@ -164,11 +165,30 @@ class FrankaCubeStack(VecTask):
         self.cmd_limit = to_torch([0.1, 0.1, 0.1, 0.5, 0.5, 0.5], device=self.device).unsqueeze(0) if \
         self.control_type == "osc" else self._franka_effort_limits[:7].unsqueeze(0)
 
+        self.print_eval_stats = self.cfg["env"]["printEvalStats"]
+        self.init_summary_writer()
+
         # Reset all environments
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
 
         # Refresh tensors
         self._refresh()
+
+    def init_summary_writer(self):
+        self.game_rewards = torch_ext.AverageMeter(1, 500).to(self.device)
+        self.cumulative_rewards = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        if self.print_eval_stats:                        
+            from tensorboardX import SummaryWriter
+            self.eval_summary_dir = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "eval_summaries")
+            if self.cfg["experiment_dir"] != '':
+                self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment_dir"])
+            if self.cfg["experiment"] != '':
+                self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment"])
+            # remove the old directory if it exists
+            if os.path.exists(self.eval_summary_dir):
+                import shutil
+                shutil.rmtree(self.eval_summary_dir)
+            self.eval_summaries = SummaryWriter(self.eval_summary_dir, flush_secs=3)
 
     def create_sim(self):
         self.sim_params.up_axis = gymapi.UP_AXIS_Z
@@ -451,6 +471,16 @@ class FrankaCubeStack(VecTask):
             self.reset_buf, self.progress_buf, self.actions, self.states, self.reward_settings, self.max_episode_length
         )
 
+        self.cumulative_rewards = self.cumulative_rewards + self.rew_buf
+        if self.print_eval_stats:
+            self.write_summary()
+
+    def write_summary(self):
+        if self.control_steps % 1000:
+            mean_reward = self.game_rewards.get_mean() * 1.00
+            # print(reset_env_ids, mean_reward, self.control_steps)
+            self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)
+
     def compute_observations(self):
         self._refresh()
         obs = ["cubeA_quat", "cubeA_pos", "cubeA_to_cubeB_pos", "eef_pos", "eef_quat"]
@@ -518,6 +548,9 @@ class FrankaCubeStack(VecTask):
 
         self.progress_buf[env_ids] = 0
         self.reset_buf[env_ids] = 0
+
+        self.game_rewards.update(self.cumulative_rewards[env_ids])
+        self.cumulative_rewards[env_ids] = 0
 
     def _reset_init_cube_state(self, cube, env_ids, check_valid=True):
         """
