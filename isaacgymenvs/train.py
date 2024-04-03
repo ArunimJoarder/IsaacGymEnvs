@@ -126,7 +126,7 @@ def launch_rlg_hydra(cfg: DictConfig):
                 adr_params_file_path = os.path.join(dirpath, str(adr_params_file_path))
             cfg.task.adr_params_file = str(adr_params_file_path)
     except AttributeError:
-        print("No adr_params_file in  cfg.task")
+        print("No adr_params_file in cfg.task")
 
     try:
         if cfg.task.onnx_noise_gen_checkpoint:
@@ -135,7 +135,7 @@ def launch_rlg_hydra(cfg: DictConfig):
                 onnx_noise_gen_checkpoint_path = os.path.join(dirpath, str(onnx_noise_gen_checkpoint_path))
             cfg.task.onnx_noise_gen_checkpoint = str(onnx_noise_gen_checkpoint_path)
     except AttributeError:
-        print("No onnx_noise_gen_checkpoint in  cfg.task")
+        print("No onnx_noise_gen_checkpoint in cfg.task")
 
     try:
         if cfg.train.params.config.train_dir:
@@ -146,6 +146,15 @@ def launch_rlg_hydra(cfg: DictConfig):
             print(cfg.train.params.config.train_dir)
     except AttributeError:
         print("No params.config.train_dir in cfg.train")
+
+    try:
+        if cfg.task.ensemble_dir:
+            ensemble_dir_path = Path(cfg.task.ensemble_dir)
+            if not ensemble_dir_path.is_absolute():
+                ensemble_dir_path = os.path.join(dirpath, str(ensemble_dir_path))
+            cfg.task.ensemble_dir = str(ensemble_dir_path)
+    except AttributeError:
+        print("No ensemble_dir in cfg.task")
 
     cfg_dict = omegaconf_to_dict(cfg)
     print_dict(cfg_dict)
@@ -247,9 +256,8 @@ def launch_rlg_hydra(cfg: DictConfig):
     if not cfg.test:
         experiment_dir = os.path.join(dirpath, 'runs', cfg.train.params.config.name + 
         '_{date:%d-%H-%M-%S}'.format(date=datetime.now()))
-        # print("===================================================================")
-        # print(experiment_dir)
-        # print("===================================================================")
+        if hasattr(cfg, "full_experiment_name"):
+            experiment_dir = os.path.join(dirpath, 'runs', cfg.full_experiment_name)
         os.makedirs(experiment_dir, exist_ok=True)
         with open(os.path.join(experiment_dir, 'config.yaml'), 'w') as f:
             f.write(OmegaConf.to_yaml(cfg))
@@ -275,9 +283,9 @@ def launch_rlg_hydra(cfg: DictConfig):
                 input_dict["is_train"] = False
                 result = self.model(input_dict)
                 mu = result["mus"]
-                # rnn_states = result["rnn_states"]
-                return mu
-                # return mu, rnn_states
+                rnn_states = result["rnn_states"]
+                # return mu
+                return mu, rnn_states
 
         if not cfg.test:
             agent = runner.create_player()
@@ -288,12 +296,12 @@ def launch_rlg_hydra(cfg: DictConfig):
         
         inputs = {
             'obs' : torch.zeros((1,) + agent.obs_shape).to(agent.device),
-            # 'rnn_states' : [torch.zeros((1,1,) + (256,)).to(agent.device), torch.zeros((1,1,) + (256,)).to(agent.device)],
+            'rnn_states' : [torch.zeros((1,1,) + (256,)).to(agent.device), torch.zeros((1,1,) + (256,)).to(agent.device)],
         }  
         if debug:
             print("[TRAIN][DEBUG] Input Obs shape:", inputs["obs"].shape)
-            # for e in inputs["rnn_states"]:
-            #     print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
+            for e in inputs["rnn_states"]:
+                print("[TRAIN][DEBUG] Input RNN State shape:", e.shape)
 
         with torch.no_grad():
             adapter = flatten.TracingAdapter(ModelWrapper(agent.model), inputs, allow_non_tensor=True)
@@ -310,19 +318,38 @@ def launch_rlg_hydra(cfg: DictConfig):
             for i, e in enumerate(flattened_outputs):
                 print(f"[TRAIN][DEBUG] Output {i} shape:", e.shape)
 
-        model_filename = "exported_models/" + cfg.task.name + ".onnx"
+        if hasattr(cfg.task, "ensemble_dir"):
+            ensemble_dir_path = Path(cfg.task.ensemble_dir)
+            if not ensemble_dir_path.is_absolute():
+                ensemble_dir_path = os.path.join(dirpath, str(ensemble_dir_path))
+            cfg.task.ensemble_dir = str(ensemble_dir_path)
+
+            task_ensemble_dir = os.path.join(cfg.task.ensemble_dir, cfg.experiment)
+            os.makedirs(task_ensemble_dir, exist_ok=True)
+
+            model_num = str(cfg.task.model_num if hasattr(cfg.task, "model_num") else 0)
+            model_filename = os.path.join(task_ensemble_dir, model_num + "_" + cfg.task.name + ".onnx")
+        else:
+            export_dir = "exported_models"
+            export_dir_path = Path(export_dir)
+            if not export_dir_path.is_absolute():
+                export_dir_path = os.path.join(dirpath, str(export_dir_path))
+            export_dir = str(export_dir_path)
+            model_filename = os.path.join(export_dir, cfg.task.name, cfg.experiment + ".onnx")
 
         print("[TRAIN] Exporting ONNX model")
         torch.onnx.export(traced,
                           adapter.flattened_inputs,
                           model_filename,
                           verbose=True,
-                          input_names=['obs'],
-                          output_names=['mu'],
-                          dynamic_axes={"obs": {0: "batch_size"}})
-                        #   input_names=['obs', 'out_state', 'hidden_state'],
-                        #   output_names=['mu', 'out_state', 'hidden_state'],
-                        #   dynamic_axes={"obs": {0: "batch_size"}, "out_state": {1: "batch_size"}, "hidden_state": {1: "batch_size"}})
+                          input_names=['obs', 'out_state', 'hidden_state'],
+                          output_names=['mu', 'out_state', 'hidden_state'],
+                          dynamic_axes={"obs": {0: "batch_size"}, "out_state": {1: "batch_size"}, "hidden_state": {1: "batch_size"}})
+                        #   input_names=['obs'],
+                        #   output_names=['mu'],
+                        #   dynamic_axes={"obs": {0: "batch_size"}})
+
+
         print("[TRAIN] ONNX model exported successfully")
 
         print("[TRAIN] Loading ONNX model")
