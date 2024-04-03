@@ -23,7 +23,7 @@ params:
         fixed_sigma: True
 
     mlp:
-      units: [512, 512, 256, 128]
+      units: [1024, 512, 512, 256]
       activation: elu
       d2rl: False
 

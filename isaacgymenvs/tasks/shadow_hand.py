@@ -38,6 +38,7 @@ from isaacgymenvs.utils.torch_jit_utils import scale, unscale, quat_mul, quat_co
 
 from isaacgymenvs.tasks.base.vec_task import VecTask
 
+from rl_games.algos_torch import torch_ext
 
 class ShadowHand(VecTask):
 
@@ -204,7 +205,8 @@ class ShadowHand(VecTask):
         self.init_summary_writer()
 
     def init_summary_writer(self):
-        self.cumulative_reward = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self.game_rewards = torch_ext.AverageMeter(1, 500).to(self.device)
+        self.cumulative_rewards = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         if self.print_eval_stats:                        
             from tensorboardX import SummaryWriter
             self.eval_summary_dir = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "eval_summaries")
@@ -431,12 +433,10 @@ class ShadowHand(VecTask):
         self.goal_object_indices = to_torch(self.goal_object_indices, dtype=torch.long, device=self.device)
 
     def write_summary(self):
-        reset_env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
-        if len(reset_env_ids) > 0:
-            if self.control_steps % 10000:
-                mean_reward = self.cumulative_reward[reset_env_ids].mean().item() * 0.01
-                # print(reset_env_ids, mean_reward, self.control_steps)
-                self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)
+        if self.control_steps % 1000:
+            mean_reward = self.game_rewards.get_mean() * 0.01
+            # print(reset_env_ids, mean_reward, self.control_steps)
+            self.eval_summaries.add_scalar("shaped_rewards", mean_reward, self.control_steps)
 
     def compute_reward(self, actions):
         self.rew_buf[:], self.reset_buf[:], self.reset_goal_buf[:], self.progress_buf[:], self.successes[:], self.consecutive_successes[:] = compute_hand_reward(
@@ -461,7 +461,7 @@ class ShadowHand(VecTask):
                 print("Post-Reset average consecutive successes = {:.1f}".format(self.total_successes/self.total_resets))
 
 
-        self.cumulative_reward = self.cumulative_reward + self.rew_buf
+        self.cumulative_rewards = self.cumulative_rewards + self.rew_buf
         if self.print_eval_stats:
             self.write_summary()
 
@@ -698,7 +698,8 @@ class ShadowHand(VecTask):
         self.reset_buf[env_ids] = 0
         self.successes[env_ids] = 0
 
-        self.cumulative_reward[env_ids] = 0
+        self.game_rewards.update(self.cumulative_rewards[env_ids])
+        self.cumulative_rewards[env_ids] = 0
 
     def pre_physics_step(self, actions):
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
