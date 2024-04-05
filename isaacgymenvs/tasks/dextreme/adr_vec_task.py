@@ -256,7 +256,7 @@ class VecTaskDextreme(EnvDextreme, VecTask):
         """Compute reward and observations, reset any environments that require it."""
 
 
-    def step(self, actions: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
+    def step(self, res_dict: Dict[str, torch.Tensor]) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
         """Step the physics of the environment.
 
         Args:
@@ -265,6 +265,9 @@ class VecTaskDextreme(EnvDextreme, VecTask):
             Observations, rewards, resets, info
             Observations are dict of observations (currently only one member called 'obs')
         """
+
+        self.res_dict = res_dict
+        actions = res_dict["actions"]
 
         # randomize actions
         if self.action_randomizations is not None and self.randomize_act_builtin:
@@ -340,7 +343,11 @@ class VecTaskDextreme(EnvDextreme, VecTask):
         zero_actions = self.zero_actions()
 
         # step the simulator
-        self.step(zero_actions)
+        res_dict = {}
+        res_dict["actions"] = zero_actions
+        res_dict["mus"] = zero_actions
+        res_dict["sigmas"] = torch.ones_like(zero_actions)
+        self.step(res_dict)
 
         if self.use_dict_obs:
             obs_dict_ret = {

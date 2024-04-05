@@ -51,8 +51,8 @@ debug = False
 class BaseControllerPlugin:
 	def __init__(self, onnx_model_checkpoint, device) -> None:
 		sess_options = ort.SessionOptions()
-		sess_options.inter_op_num_threads = 8
-		sess_options.intra_op_num_threads = 8
+		# sess_options.inter_op_num_threads = 8
+		# sess_options.intra_op_num_threads = 8
 		# sess_options.log_severity_level = 0
 		self._model = ort.InferenceSession(onnx_model_checkpoint, sess_options=sess_options, providers=["CUDAExecutionProvider"])
 		if debug: print("[TASK-AdvActions][DEBUG] ONNX model input names:", [o.name for o in self._model.get_inputs()])
@@ -815,56 +815,59 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 				plt.clf()
 
 		if self.realtime_plots:
-			if self.frame % 10 == 0:
-				for ax in self.rt_plot_ax_obs_cube_pose.flat:
-					ax.cla()
-				for ax in self.rt_plot_ax_obs_dof.flat:
-					ax.cla()
-				for ax in self.rt_plot_ax_actions.flat:
-					ax.cla()
+			self.realtime_plotter()
+			
+	def realtime_plotter(self):
+		if self.frame % 10 == 0:
+			for ax in self.rt_plot_ax_obs_cube_pose.flat:
+				ax.cla()
+			for ax in self.rt_plot_ax_obs_dof.flat:
+				ax.cla()
+			for ax in self.rt_plot_ax_actions.flat:
+				ax.cla()
 
 
-				# print(self.rt_plot_frame_buffer.shape, self.rt_plot_obs_cube_pos_buffer.shape)
-				self.rt_plot_frame_buffer = np.vstack([self.rt_plot_frame_buffer, self.frame])
-				# print(np.array([self.cube_rot_noise_scaled.cpu().numpy(),]).shape, self.rt_plot_obs_cube_pos_buffer.shape)
-				# print(np.array([self.cube_rot_noise_scaled.cpu().numpy(),]))
-				# print(self.rt_plot_obs_cube_pos_buffer)
-				self.rt_plot_obs_cube_pos_buffer = np.vstack([self.rt_plot_obs_cube_pos_buffer, np.array([self.cube_pos_noise_scaled.cpu().numpy(),])])
-				self.rt_plot_obs_cube_rot_buffer = np.vstack([self.rt_plot_obs_cube_rot_buffer, np.array([self.cube_rot_noise_scaled.cpu().numpy(),])])
-				self.rt_plot_actions_buffer = np.vstack([self.rt_plot_actions_buffer, np.array([self.action_noise_scaled.cpu().numpy(),])])
-				self.rt_plot_obs_dof_buffer = np.vstack([self.rt_plot_obs_dof_buffer, np.array([self.dof_pos_noise_scaled.cpu().numpy(),])])
-				# print(self.rt_plot_obs_cube_pos_buffer)
-				# print(self.cube_pos_noise_scaled.shape, self.rt_plot_obs_cube_pos_buffer.shape)
+			# print(self.rt_plot_frame_buffer.shape, self.rt_plot_obs_cube_pos_buffer.shape)
+			self.rt_plot_frame_buffer = np.vstack([self.rt_plot_frame_buffer, self.frame])
+			# print(np.array([self.cube_rot_noise_scaled.cpu().numpy(),]).shape, self.rt_plot_obs_cube_pos_buffer.shape)
+			# print(np.array([self.cube_rot_noise_scaled.cpu().numpy(),]))
+			# print(self.rt_plot_obs_cube_pos_buffer)
+			self.rt_plot_obs_cube_pos_buffer = np.vstack([self.rt_plot_obs_cube_pos_buffer, np.array([self.cube_pos_noise_scaled.cpu().numpy(),])])
+			self.rt_plot_obs_cube_rot_buffer = np.vstack([self.rt_plot_obs_cube_rot_buffer, np.array([self.cube_rot_noise_scaled.cpu().numpy(),])])
+			self.rt_plot_actions_buffer = np.vstack([self.rt_plot_actions_buffer, np.array([self.action_noise_scaled.cpu().numpy(),])])
+			self.rt_plot_obs_dof_buffer = np.vstack([self.rt_plot_obs_dof_buffer, np.array([self.dof_pos_noise_scaled.cpu().numpy(),])])
+			# print(self.rt_plot_obs_cube_pos_buffer)
+			# print(self.cube_pos_noise_scaled.shape, self.rt_plot_obs_cube_pos_buffer.shape)
 
-				for i in range(self.num_envs):
-					self.rt_plot_ax_obs_cube_pose[0,0].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_pos_buffer[:, i, 0])
-					self.rt_plot_ax_obs_cube_pose[0,1].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_pos_buffer[:, i, 1])
-					self.rt_plot_ax_obs_cube_pose[0,2].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_pos_buffer[:, i, 2])
-					self.rt_plot_ax_obs_cube_pose[1,0].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_rot_buffer[:, i, 0])
-					self.rt_plot_ax_obs_cube_pose[1,1].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_rot_buffer[:, i, 1])
-					self.rt_plot_ax_obs_cube_pose[1,2].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_rot_buffer[:, i, 2])
+			for i in range(self.num_envs):
+				self.rt_plot_ax_obs_cube_pose[0,0].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_pos_buffer[:, i, 0])
+				self.rt_plot_ax_obs_cube_pose[0,1].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_pos_buffer[:, i, 1])
+				self.rt_plot_ax_obs_cube_pose[0,2].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_pos_buffer[:, i, 2])
+				self.rt_plot_ax_obs_cube_pose[1,0].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_rot_buffer[:, i, 0])
+				self.rt_plot_ax_obs_cube_pose[1,1].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_rot_buffer[:, i, 1])
+				self.rt_plot_ax_obs_cube_pose[1,2].plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_cube_rot_buffer[:, i, 2])
 
-					for j, ax in enumerate(self.rt_plot_ax_actions.flat):
-						ax.plot(self.rt_plot_frame_buffer[:], self.rt_plot_actions_buffer[:, i, j])
+				for j, ax in enumerate(self.rt_plot_ax_actions.flat):
+					ax.plot(self.rt_plot_frame_buffer[:], self.rt_plot_actions_buffer[:, i, j])
 
-					for j, ax in enumerate(self.rt_plot_ax_obs_dof.flat):
-						ax.plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_dof_buffer[:, i, j])
+				for j, ax in enumerate(self.rt_plot_ax_obs_dof.flat):
+					ax.plot(self.rt_plot_frame_buffer[:], self.rt_plot_obs_dof_buffer[:, i, j])
 
-				for i, ax in enumerate(self.rt_plot_ax_actions.flat):
-					# ax.set(xlabel='frame')
-					ax.set_title(f"dof_{i+1} Action Noise")
+			for i, ax in enumerate(self.rt_plot_ax_actions.flat):
+				# ax.set(xlabel='frame')
+				ax.set_title(f"dof_{i+1} Action Noise")
 
-				for i, ax in enumerate(self.rt_plot_ax_obs_dof.flat):
-					# ax.set(xlabel='frame')
-					ax.set_title(f"dof_{i+1} Observation Noise")
+			for i, ax in enumerate(self.rt_plot_ax_obs_dof.flat):
+				# ax.set(xlabel='frame')
+				ax.set_title(f"dof_{i+1} Observation Noise")
 
-				self.rt_plot_ax_obs_cube_pose[0,0].set_title("Cube Pos X Noise")					
-				self.rt_plot_ax_obs_cube_pose[0,1].set_title("Cube Pos Y Noise")					
-				self.rt_plot_ax_obs_cube_pose[0,2].set_title("Cube Pos Z Noise")					
-				self.rt_plot_ax_obs_cube_pose[1,0].set_title("Cube Rot X Noise")					
-				self.rt_plot_ax_obs_cube_pose[1,1].set_title("Cube Rot Y Noise")					
-				self.rt_plot_ax_obs_cube_pose[1,2].set_title("Cube Rot Z Noise")	
-				plt.pause(0.0001)
+			self.rt_plot_ax_obs_cube_pose[0,0].set_title("Cube Pos X Noise")					
+			self.rt_plot_ax_obs_cube_pose[0,1].set_title("Cube Pos Y Noise")					
+			self.rt_plot_ax_obs_cube_pose[0,2].set_title("Cube Pos Z Noise")					
+			self.rt_plot_ax_obs_cube_pose[1,0].set_title("Cube Rot X Noise")					
+			self.rt_plot_ax_obs_cube_pose[1,1].set_title("Cube Rot Y Noise")					
+			self.rt_plot_ax_obs_cube_pose[1,2].set_title("Cube Rot Z Noise")	
+			plt.pause(0.0001)
 
 class AllegroHandDextremeAdversarialObservations(AllegroHandDextremeADR, AllegroHandDextreme, ADRVecTask):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):

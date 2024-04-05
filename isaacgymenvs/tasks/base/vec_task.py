@@ -357,7 +357,7 @@ class VecTask(Env):
     def post_physics_step(self):
         """Compute reward and observations, reset any environments that require it."""
 
-    def step(self, actions: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
+    def step(self, res_dict: Dict[str, torch.Tensor]) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
         """Step the physics of the environment.
 
         Args:
@@ -366,6 +366,9 @@ class VecTask(Env):
             Observations, rewards, resets, info
             Observations are dict of observations (currently only one member called 'obs')
         """
+
+        self.res_dict = res_dict
+        actions = res_dict["actions"]
 
         # randomize actions
         if self.dr_randomizations.get('actions', None):

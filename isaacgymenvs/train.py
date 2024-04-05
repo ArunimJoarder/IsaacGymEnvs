@@ -282,17 +282,22 @@ def launch_rlg_hydra(cfg: DictConfig):
             def forward(self,input_dict):
                 input_dict["is_train"] = False
                 result = self.model(input_dict)
-                mu = result["mus"]
-                rnn_states = result["rnn_states"]
-                # return mu
-                return mu, rnn_states
+                
+                neglogpacs = result["neglogpacs"]
+                values = result["values"]
+                actions = result["actions"]
+                out_state = result["rnn_states"][0]
+                hidden_state = result["rnn_states"][1]
+                mus = result["mus"]
+                sigmas = result["sigmas"]
+                return values, actions, out_state, hidden_state, mus, sigmas
 
         if not cfg.test:
-            agent = runner.create_player()
+            agent = runner.agent
         else:
             agent = runner.player
-        agent.restore(cfg.checkpoint)
-        agent.init_rnn()
+            agent.restore(cfg.checkpoint)
+            agent.init_rnn()
         
         inputs = {
             'obs' : torch.zeros((1,) + agent.obs_shape).to(agent.device),
@@ -307,9 +312,6 @@ def launch_rlg_hydra(cfg: DictConfig):
             adapter = flatten.TracingAdapter(ModelWrapper(agent.model), inputs, allow_non_tensor=True)
             traced = torch.jit.trace(adapter, adapter.flattened_inputs, check_trace=False)
             flattened_outputs = traced(*adapter.flattened_inputs)
-
-        # print(adapter.flattened_inputs)
-        # print(flattened_outputs)
 
         if debug:
             for i, e in enumerate(adapter.flattened_inputs):
@@ -335,7 +337,9 @@ def launch_rlg_hydra(cfg: DictConfig):
             if not export_dir_path.is_absolute():
                 export_dir_path = os.path.join(dirpath, str(export_dir_path))
             export_dir = str(export_dir_path)
-            model_filename = os.path.join(export_dir, cfg.task.name, cfg.experiment + ".onnx")
+            task_export_dir = os.path.join(export_dir, cfg.task.name)
+            os.makedirs(task_export_dir, exist_ok=True)
+            model_filename = os.path.join(task_export_dir, cfg.experiment + ".onnx")
 
         print("[TRAIN] Exporting ONNX model")
         torch.onnx.export(traced,
@@ -343,7 +347,7 @@ def launch_rlg_hydra(cfg: DictConfig):
                           model_filename,
                           verbose=True,
                           input_names=['obs', 'out_state', 'hidden_state'],
-                          output_names=['mu', 'out_state', 'hidden_state'],
+                          output_names=['values', 'actions', 'out_state', 'hidden_state', 'mus', 'sigmas'],
                           dynamic_axes={"obs": {0: "batch_size"}, "out_state": {1: "batch_size"}, "hidden_state": {1: "batch_size"}})
                         #   input_names=['obs'],
                         #   output_names=['mu'],

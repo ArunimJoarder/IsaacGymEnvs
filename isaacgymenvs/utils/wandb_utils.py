@@ -19,7 +19,7 @@ class WandbAlgoObserver(AlgoObserver):
 
         import wandb
 
-        wandb_unique_id = f"uid_{experiment_name}"
+        wandb_unique_id = f"uid_{experiment_name}_"
         print(f"Wandb using unique id {wandb_unique_id}")
 
         cfg = self.cfg

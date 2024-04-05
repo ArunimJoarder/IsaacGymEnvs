@@ -28,7 +28,7 @@
 
 import os
 from collections import deque
-from typing import Callable, Dict, Tuple, Any
+from typing import Callable, Dict, Tuple, Any, List
 
 import os
 import gym
@@ -243,8 +243,8 @@ class RLGPUEnv(vecenv.IVecEnv):
     def __init__(self, config_name, num_actors, **kwargs):
         self.env = env_configurations.configurations[config_name]['env_creator'](**kwargs)
 
-    def step(self, actions):
-        return self.env.step(actions)
+    def step(self, res_dict):
+        return self.env.step(res_dict)
 
     def reset(self):
         return self.env.reset()
@@ -342,7 +342,7 @@ class ComplexObsRLGPUEnv(vecenv.IVecEnv):
         return rlgames_obs
 
     def step(
-        self, action: torch.Tensor
+        self, res_dict: Dict[str, torch.Tensor]
     ) -> Tuple[
         Dict[str, Dict[str, torch.Tensor]], torch.Tensor, torch.Tensor, Dict[str, Any]
     ]:
@@ -355,7 +355,7 @@ class ComplexObsRLGPUEnv(vecenv.IVecEnv):
             Returned obeservations are a dict which contains key 'obs' corresponding to a dictionary of observations,
             and possible 'states' key corresponding to dictionary of privileged observations.
         """
-        env_obs, rewards, dones, infos = self.env.step(action)
+        env_obs, rewards, dones, infos = self.env.step(res_dict)
         rlgames_obs = self._generate_obs(env_obs)
         return rlgames_obs, rewards, dones, infos
 

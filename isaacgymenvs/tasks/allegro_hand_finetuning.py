@@ -45,8 +45,8 @@ debug = False
 class BaseControllerPlugin:
 	def __init__(self, onnx_model_checkpoint, device) -> None:
 		sess_options = ort.SessionOptions()
-		sess_options.inter_op_num_threads = 8
-		sess_options.intra_op_num_threads = 8
+		# sess_options.inter_op_num_threads = 8
+		# sess_options.intra_op_num_threads = 8
 		# sess_options.log_severity_level = 0
 		self._model = ort.InferenceSession(onnx_model_checkpoint, sess_options=sess_options, providers=["CUDAExecutionProvider"])
 		self.device = device

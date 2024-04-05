@@ -4,7 +4,7 @@
 set -e
 
 experiment="default_ensemble"
-num_models=1
+num_models=5
 
 while getopts e:n:m: flag
 do
@@ -14,30 +14,32 @@ do
     esac
 done
 
-num_envs=1024
-max_iterations=7
+num_envs=4096
+max_iterations=3000
 
-for(( i=0; i<$num_models; i++ ))
+for(( i=1; i<$num_models; i++ ))
 do
     python train.py \
         task=AllegroHandDextremeAdversarialObservationsAndActionsEnsemble \
         base_checkpoint=exported_models/AllegroHandADR.onnx \
         headless=True \
+        wandb_activate=True \
+        wandb_entity=caviar-garnish \
         num_envs=$num_envs \
         max_iterations=$max_iterations \
-        task.env.printNumSuccesses=True \
-        task.experiment_dir=${exp_dir} \
+        task.env.printNumSuccesses=False \
+        task.experiment_dir="ensemble/${experiment}/model_${i}" \
         experiment="${experiment}" \
-        +full_experiment_name="${experiment}/model_${i}" \
+        +full_experiment_name="${experiment}_model_${i}" \
         task.model_num=${i} \
         task.ensemble_dir=ensemble_models
 
-    python scripts/collect_checkpoints.py \
+    python3 scripts/collect_checkpoints.py \
         -e ${experiment} \
         -m ${i} \
         -d runs/${experiment}_ensemble
 
-    python train.py \
+    python3 train.py \
         task=AllegroHandDextremeAdversarialObservationsAndActionsEnsemble \
         base_checkpoint=exported_models/AllegroHandADR.onnx \
         checkpoint="runs/${experiment}_ensemble/${experiment}_${i}.pth" \
