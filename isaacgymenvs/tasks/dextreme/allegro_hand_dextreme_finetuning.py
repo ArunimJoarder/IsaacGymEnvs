@@ -52,8 +52,8 @@ debug = False
 class BaseNoiseGeneratorPlugin:
 	def __init__(self, onnx_model_checkpoint, device) -> None:
 		sess_options = ort.SessionOptions()
-		sess_options.inter_op_num_threads = 8
-		sess_options.intra_op_num_threads = 8
+		# sess_options.inter_op_num_threads = 8
+		# sess_options.intra_op_num_threads = 8
 		# sess_options.log_severity_level = 0
 		self._model = ort.InferenceSession(onnx_model_checkpoint, sess_options=sess_options, providers=["CUDAExecutionProvider"])
 		if debug: print("[TASK-Finetuning][DEBUG] ONNX model input names:", [o.name for o in self._model.get_inputs()])
@@ -136,12 +136,13 @@ class BaseNoiseGeneratorPlugin:
 	def rescale_noises(self, low, high, noise):
 		d = (high - low) / 2.0
 		m = (high + low) / 2.0
-		scaled_noise =  noise * d + m
+		scaled_noise = noise * d + m
 		return scaled_noise
 
 	# NOTE: Function definition is specific to AllegroHandDextremeADR trained model 
-	def get_noise(self, obs):
-		obs = self._generate_obs(obs)
+	def get_noise(self, obs, convert_to_rl_games_obs=True):
+		if convert_to_rl_games_obs:
+			obs = self._generate_obs(obs)
 		np_obs = self.obs_to_numpy(obs)
 		if self.init_rnn_needed:
 			batch_size = np_obs.shape[0]
@@ -161,19 +162,29 @@ class BaseNoiseGeneratorPlugin:
 		
 		if debug: print("[TASK-Finetuning][DEBUG] Running ONNX model")
 		
-		mu, out_states, hidden_states = self._model.run(None, input_dict)
-		
+		values, noise, out_state, hidden_state, mus, sigmas = self._model.run(None, input_dict)
+
+		res_dict = {}
+		res_dict["values"] = values
+		res_dict["noise"] = noise
+		res_dict["out_state "] = out_state 
+		res_dict["hidden_state"] = hidden_state
+		res_dict["mus"] = mus
+		res_dict["sigmas"] = sigmas
+
 		if debug: 
 			print("[TASK-Finetuning][DEBUG] ONNX model ran successfully")
-			print(f"[TASK-Finetuning][DEBUG] mu shape:", mu.shape)
-			print(f"[TASK-Finetuning][DEBUG] out_states shape:", out_states.shape)
-			print(f"[TASK-Finetuning][DEBUG] hidden_states shape:", hidden_states.shape)
+			print(f"[TASK-Finetuning][DEBUG] noise shape:", noise.shape)
+			print(f"[TASK-Finetuning][DEBUG] out_states shape:", out_state.shape)
+			print(f"[TASK-Finetuning][DEBUG] hidden_states shape:", hidden_state.shape)
 		
-		self.states = (out_states, hidden_states)
-		current_noise = torch.tensor(mu).to(self.device)
+		self.states = (out_state, hidden_state)
+		current_noise = torch.tensor(noise).to(self.device)
 		
 		# TODO: Change hardcoded action high and low
-		return self.rescale_noises(-1.0, 1.0, torch.clamp(current_noise, -1.0, 1.0))
+		res_dict["noise"] = self.rescale_noises(-1.0, 1.0, torch.clamp(current_noise, -1.0, 1.0))
+
+		return res_dict
 
 class AdversarialActionNoiseGeneratorPlugin(BaseNoiseGeneratorPlugin):
 	def __init__(self, onnx_model_checkpoint, device) -> None:
@@ -189,13 +200,14 @@ class AdversarialActionNoiseGeneratorPlugin(BaseNoiseGeneratorPlugin):
 
 		self.num_rnn_states = 256
 
-	def get_noise(self, obs):
-		base_noise = super().get_noise(obs)
+	def get_noise(self, obs, convert_to_rl_games_obs=True):
+		res_dict = super().get_noise(obs, convert_to_rl_games_obs)
+		base_noise = res_dict["noise"]
 
 		noise = {}
 		noise["action_noise"] = base_noise * self.action_noise_scale
 
-		return noise, base_noise
+		return noise, base_noise, res_dict
 
 class AdversarialActionAndObservationNoiseGeneratorPlugin(BaseNoiseGeneratorPlugin):
 	def __init__(self, onnx_model_checkpoint, device) -> None:
@@ -203,8 +215,9 @@ class AdversarialActionAndObservationNoiseGeneratorPlugin(BaseNoiseGeneratorPlug
 
 		self.num_rnn_states = 256
 
-	def get_noise(self, obs):
-		base_noise = super().get_noise(obs)
+	def get_noise(self, obs, convert_to_rl_games_obs=True):
+		res_dict = super().get_noise(obs, convert_to_rl_games_obs)
+		base_noise = res_dict["noise"]
 
 		noise = {}
 		noise["action_noise"] = base_noise[:,0:16] * self.action_noise_scale
@@ -212,7 +225,7 @@ class AdversarialActionAndObservationNoiseGeneratorPlugin(BaseNoiseGeneratorPlug
 		noise["cube_rot_noise"] = base_noise[:,19:22] * self.cube_rot_noise_scale
 		noise["dof_pos_noise"] = base_noise[:,22:38] * self.dof_pos_noise_scale
 
-		return noise, base_noise
+		return noise, base_noise, res_dict
 
 class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
@@ -242,7 +255,7 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 		# else:
 		# 	print("=======================================================================================")
 
-		self.noises, self.noises_full = self.noise_generator.get_noise(self.obs_dict)
+		self.noises, self.noises_full, _ = self.noise_generator.get_noise(self.obs_dict)
 		
 		if self.use_adv_noise and "action_noise" in self.noises.keys():
 			# print("=============================   Action Noise Added!!!!!   =============================")
@@ -331,7 +344,7 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 		if np.random.rand() < self.adv_noise_prob:
 			self.use_adv_noise = True
 
-		self.noises, self.noises_full = self.noise_generator.get_noise(self.obs_dict)
+		self.noises, self.noises_full, _ = self.noise_generator.get_noise(self.obs_dict)
 		
 		self.base_actions = self.base_controller.get_action(self.obs_dict)
 

@@ -74,6 +74,8 @@ params:
 
   config:
     train_dir: runs
+    enable_ensemble: ${resolve_default:False,${....enable_ensemble}}
+    ensemble_dir: ensemble_models
 
     name: ${resolve_default:AllegroHandAdvObsAndActionsEnsembleAsymmLSTM,${....experiment}}
     full_experiment_name: ${.name}
@@ -96,8 +98,8 @@ params:
     kl_threshold: 0.01
     score_to_win: 1000000
     max_epochs: ${resolve_default:1000_000,${....max_iterations}}
-    save_best_after: 5
-    save_frequency: 1
+    save_best_after: 1000
+    save_frequency: 500
     print_stats: True
     grad_norm: 1.0
     entropy_coef: 0.002

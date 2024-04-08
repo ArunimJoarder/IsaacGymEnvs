@@ -20,7 +20,7 @@ INSTALL_REQUIRES = [
     "termcolor",
     "jinja2",
     "hydra-core>=1.2",
-    "rl-games>=1.6.0",
+    # "rl-games>=1.6.0",
     "pyvirtualdisplay",
     "urdfpy==0.0.22",
     "pysdf==0.1.9",

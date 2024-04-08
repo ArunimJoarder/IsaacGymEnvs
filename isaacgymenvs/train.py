@@ -148,13 +148,13 @@ def launch_rlg_hydra(cfg: DictConfig):
         print("No params.config.train_dir in cfg.train")
 
     try:
-        if cfg.task.ensemble_dir:
-            ensemble_dir_path = Path(cfg.task.ensemble_dir)
+        if cfg.train.params.config.ensemble_dir:
+            ensemble_dir_path = Path(cfg.train.params.config.ensemble_dir)
             if not ensemble_dir_path.is_absolute():
                 ensemble_dir_path = os.path.join(dirpath, str(ensemble_dir_path))
-            cfg.task.ensemble_dir = str(ensemble_dir_path)
+            cfg.train.params.config.ensemble_dir = str(ensemble_dir_path)
     except AttributeError:
-        print("No ensemble_dir in cfg.task")
+        print("No ensemble_dir in cfg.train.params.config")
 
     cfg_dict = omegaconf_to_dict(cfg)
     print_dict(cfg_dict)
@@ -282,17 +282,22 @@ def launch_rlg_hydra(cfg: DictConfig):
             def forward(self,input_dict):
                 input_dict["is_train"] = False
                 result = self.model(input_dict)
-                mu = result["mus"]
-                rnn_states = result["rnn_states"]
-                # return mu
-                return mu, rnn_states
+                
+                neglogpacs = result["neglogpacs"]
+                values = result["values"]
+                actions = result["actions"]
+                out_state = result["rnn_states"][0]
+                hidden_state = result["rnn_states"][1]
+                mus = result["mus"]
+                sigmas = result["sigmas"]
+                return values, actions, out_state, hidden_state, mus, sigmas
 
         if not cfg.test:
-            agent = runner.create_player()
+            agent = runner.agent
         else:
             agent = runner.player
-        agent.restore(cfg.checkpoint)
-        agent.init_rnn()
+            agent.restore(cfg.checkpoint)
+            agent.init_rnn()
         
         inputs = {
             'obs' : torch.zeros((1,) + agent.obs_shape).to(agent.device),
@@ -318,13 +323,8 @@ def launch_rlg_hydra(cfg: DictConfig):
             for i, e in enumerate(flattened_outputs):
                 print(f"[TRAIN][DEBUG] Output {i} shape:", e.shape)
 
-        if hasattr(cfg.task, "ensemble_dir"):
-            ensemble_dir_path = Path(cfg.task.ensemble_dir)
-            if not ensemble_dir_path.is_absolute():
-                ensemble_dir_path = os.path.join(dirpath, str(ensemble_dir_path))
-            cfg.task.ensemble_dir = str(ensemble_dir_path)
-
-            task_ensemble_dir = os.path.join(cfg.task.ensemble_dir, cfg.experiment)
+        if cfg.enable_ensemble:
+            task_ensemble_dir = os.path.join(cfg.train.params.config.ensemble_dir, cfg.experiment)
             os.makedirs(task_ensemble_dir, exist_ok=True)
 
             model_num = str(cfg.task.model_num if hasattr(cfg.task, "model_num") else 0)
@@ -335,7 +335,9 @@ def launch_rlg_hydra(cfg: DictConfig):
             if not export_dir_path.is_absolute():
                 export_dir_path = os.path.join(dirpath, str(export_dir_path))
             export_dir = str(export_dir_path)
-            model_filename = os.path.join(export_dir, cfg.task.name, cfg.experiment + ".onnx")
+            task_export_dir = os.path.join(export_dir, cfg.task.name)
+            os.makedirs(task_export_dir, exist_ok=True)
+            model_filename = os.path.join(task_export_dir, cfg.experiment + ".onnx")
 
         print("[TRAIN] Exporting ONNX model")
         torch.onnx.export(traced,
@@ -343,12 +345,13 @@ def launch_rlg_hydra(cfg: DictConfig):
                           model_filename,
                           verbose=True,
                           input_names=['obs', 'out_state', 'hidden_state'],
-                          output_names=['mu', 'out_state', 'hidden_state'],
+                          output_names=['values', 'actions', 'out_state', 'hidden_state', 'mus', 'sigmas'],
                           dynamic_axes={"obs": {0: "batch_size"}, "out_state": {1: "batch_size"}, "hidden_state": {1: "batch_size"}})
                         #   input_names=['obs'],
                         #   output_names=['mu'],
                         #   dynamic_axes={"obs": {0: "batch_size"}})
 
+        print("[TRAIN] Model exported to", model_filename)
 
         print("[TRAIN] ONNX model exported successfully")
 

@@ -23,7 +23,7 @@ if __name__ == "__main__":
 	dst_dir = os.path.join(main_dir, args.dst_dir)
 	# print("dst_dir:", dst_dir)
 	
-	nn_dir = os.path.join(args.experiment, "model_" + str(args.model_number), "nn")
+	nn_dir = os.path.join(args.experiment + "_model_" + str(args.model_number), "nn")
 	exp_dir = os.path.join(main_dir, "runs", nn_dir)
 	if not os.path.exists(exp_dir):
 		msg = "\"" + nn_dir + "\" does not exist in " + os.path.join(main_dir, "runs")

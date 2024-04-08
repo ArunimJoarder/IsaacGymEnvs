@@ -74,3 +74,4 @@ hydra:
 # additional
 save_onnx: False
 base_checkpoint: ''
+enable_ensemble: False
