@@ -35,8 +35,8 @@ outputs/
 .vscode/
 # exported_models/
 ranges/
-deXtreme.sif
-deXtreme.tar
+*.sif
+*.tar
 *.log
 *.out
-
+/isaacgymenvs/ensemble_models

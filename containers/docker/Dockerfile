@@ -15,26 +15,33 @@ ENV DEBIAN_frontend noninteractive
 
 # Create folders for cloning
 ENV WORKSPACE=/deXtreme
-RUN mkdir -p $WORKSPACE && mkdir -p $WORKSPACE/isaacgym && mkdir -p $WORKSPACE/IsaacGymEnvs
+RUN mkdir -p $WORKSPACE && mkdir -p $WORKSPACE/isaacgym && mkdir -p $WORKSPACE/IsaacGymEnvs && mkdir -p $WORKSPACE/rl_games
 
 ENV CXX=/usr/bin/g++
 ENV CC=/usr/bin/gcc
 
 # Install dependencies
 RUN apt-get update --fix-missing && apt-get install -y apt-utils git wget vim openscad python3-dev python3-distutils python3-pip libpython3-dev python3-tk
-# RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
-RUN pip3 install matplotlib tensorboard trimesh warp-lang trimesh pytest GitPython numpy==1.23.0 imageio ninja pillow pyyaml scipy onnxruntime-gpu onnx
+RUN pip3 install -U pip setuptools
+RUN pip3 install torch==2.0.1 torchvision==0.15.2
+RUN pip3 install -U matplotlib tensorboard trimesh warp-lang trimesh pytest GitPython numpy==1.23.* imageio ninja pillow pyyaml scipy onnxruntime-gpu onnx ray
 
-# Install IsaacGym
+# Install isaacgym
 ADD isaacgym $WORKSPACE/isaacgym
 RUN cd $WORKSPACE/isaacgym/python && pip install -e .
 
-# Install legged_gym
+# Install rl_games
+ADD rl_games $WORKSPACE/rl_games
+RUN cd $WORKSPACE/rl_games && pip install -e .
+
+# Install IsaacGymEnvs
 ADD IsaacGymEnvs $WORKSPACE/IsaacGymEnvs
 RUN cd $WORKSPACE/IsaacGymEnvs && pip install -e .
 
 # delete folders for mounting your changes on the cluster 
 # (uncomment the next line if you have changes in rsl_rl that needs to be mounted on the cluster)
 RUN rm -r $WORKSPACE/IsaacGymEnvs/* && rm -rf IsaacGymEnvs/{,.[!.],..?}*  # deletes normal files && hidden files
+RUN rm -r $WORKSPACE/rl_games/* && rm -rf rl_games/{,.[!.],..?}*  # deletes normal files && hidden files
 
 RUN mkdir -p $WORKSPACE/IsaacGymEnvs/logs
+RUN mkdir -p $WORKSPACE/rl_games/logs

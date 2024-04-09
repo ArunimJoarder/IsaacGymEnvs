@@ -19,7 +19,7 @@ max_iterations=2000
 
 for(( i=0; i<$num_models; i++ ))
 do
-    python train.py \
+    python3 train.py \
         task=AllegroHandDextremeAdversarialObservationsAndActionsEnsemble \
         base_checkpoint=exported_models/AllegroHandADR.onnx \
         headless=True \
