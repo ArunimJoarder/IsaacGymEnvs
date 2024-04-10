@@ -22,7 +22,7 @@ export run_cmd="python3 /deXtreme/IsaacGymEnvs/isaacgymenvs/train.py \
 # python3 train.py task=Ant wandb_activate=True wandb_entity=joarder-arunim-github headless=True experiment=euler_ant_base
 # checkpoint=runs/euler_anymal_terrain_4500_iters_15-13-54-25/nn/last_euler_anymal_terrain_4500_iters_ep_4500_rew__19.31_.pth \
 
-export custom_flags="--nv --writable -B /cluster/home/$USER/git/IsaacGymEnvs/:/deXtreme/IsaacGymEnvs"
+export custom_flags="--nv --writable -B /cluster/home/$USER/git/IsaacGymEnvs/:/deXtreme/IsaacGymEnvs,/cluster/home/$USER/git/rl_games/:/deXtreme/rl_games"
 
 sbatch \
   -n 8 \

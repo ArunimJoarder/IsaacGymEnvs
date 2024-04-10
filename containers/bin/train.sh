@@ -41,7 +41,7 @@ export run_cmd="python3 /deXtreme/IsaacGymEnvs/isaacgymenvs/train.py \
 
 # python3 /deXtreme/IsaacGymEnvs/isaacgymenvs/train.py task=AllegroHandDextremeADRFinetuningResidualActions task.onnx_noise_gen_checkpoint=exported_models/AllegroHandAdversarialObservationsAndActions.onnx base_checkpoint=exported_models/AllegroHandADR.onnx wandb_activate=True wandb_entity=joarder-arunim-github headless=True num_envs=1024 experiment=euler_ft_delta_adv_prob_0.00_-10.0_action_pen_-0.2_delta_action_pen_adr_ranges_1024_2000_iters_8_cpu task.experiment_dir=while_training task.env.printNumSuccesses=False task.env.adv_noise_prob=0.00 task.env.actionPenaltyScale=-10.0 task.env.actionDeltaPenaltyScale=-0.2 max_iterations=2000
 
-export custom_flags="--nv --writable -B /cluster/home/$USER/git/IsaacGymEnvs/:/deXtreme/IsaacGymEnvs"
+export custom_flags="--nv --writable -B /cluster/home/$USER/git/IsaacGymEnvs/:/deXtreme/IsaacGymEnvs,/cluster/home/$USER/git/rl_games/:/deXtreme/rl_games"
 
 sbatch \
   -n 8 \

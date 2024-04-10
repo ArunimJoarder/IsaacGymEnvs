@@ -8,6 +8,9 @@ experiment: ${resolve_default:test,${..experiment}}
 
 onnx_noise_gen_checkpoint: 'exported_models/AllegroHandAdversarialObservationsAndActions.onnx'
 
+test: ${resolve_default:False,${..test}}
+adr_params_file: 'exported_models/adr_params.pkl'
+
 predefinedGoalChange: False
 
 # if given, will override the device setting in gym.

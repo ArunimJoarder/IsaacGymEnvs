@@ -231,6 +231,10 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
 		super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
 		
+		if not cfg["test"]:
+			with open(cfg["adr_params_file"], "rb") as fp:
+				self.adr_params = pickle.load(fp)
+			print("Loaded adr_params from checkpoint!")
 
 	def _read_cfg(self):
 		super()._read_cfg()
@@ -240,7 +244,7 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 
 	def get_num_obs_dict(self, num_dofs):
 		num_obs_dict = AllegroHandDextremeADR.get_num_obs_dict(self, num_dofs)
-		num_obs_dict["last_actions_full"] = 16 + 3 + 3 + 16
+		# num_obs_dict["last_actions_full"] = 16 + 3 + 3 + 16
 		return num_obs_dict
 
 	def _init_post_sim_buffers(self):
@@ -248,33 +252,30 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 		self.noise_generator = AdversarialActionAndObservationNoiseGeneratorPlugin(self.noise_generator_checkpoint, self.device)
 
 	def pre_physics_step(self, actions):
-		self.use_adv_noise = False
-		if np.random.rand() < self.adv_noise_prob:
-			# print("============================= Adversarial Noise Used!!!!! =============================")
-			self.use_adv_noise = True
-		# else:
-		# 	print("=======================================================================================")
+		use_adv_noise_mask = (torch.rand(size=(self.num_envs,)) < self.adv_noise_prob)
+		self.use_adv_noise_env_idx = use_adv_noise_mask.nonzero(as_tuple=False).flatten()
+
+		# print(len(self.use_adv_noise_env_idx))
 
 		self.noises, self.noises_full, _ = self.noise_generator.get_noise(self.obs_dict)
 		
-		if self.use_adv_noise and "action_noise" in self.noises.keys():
-			# print("=============================   Action Noise Added!!!!!   =============================")
-			actions = actions + self.noises["action_noise"]
+		if "action_noise" in self.noises.keys():
+			actions[self.use_adv_noise_env_idx,:] = actions[self.use_adv_noise_env_idx,:] + self.noises["action_noise"][self.use_adv_noise_env_idx,:]
 	
 		super().pre_physics_step(actions)
 
 	def compute_observations(self):
 		super().compute_observations()
-		self.obs_dict["last_actions_full"][:] = self.noises_full
+		# self.obs_dict["last_actions_full"][:] = self.noises_full
 
-		if self.use_adv_noise and "cube_pos_noise" in self.noises.keys() and "cube_rot_noise" in self.noises.keys():
-			noisy_cube_pos = self.obs_dict["object_pose_cam_randomized"][:, 0:3] + self.noises["cube_pos_noise"]
+		if "cube_pos_noise" in self.noises.keys() and "cube_rot_noise" in self.noises.keys():
+			noisy_cube_pos = self.obs_dict["object_pose_cam_randomized"][self.use_adv_noise_env_idx, 0:3] + self.noises["cube_pos_noise"][self.use_adv_noise_env_idx,:]
 
-			cube_rot_noise_quat = quat_from_euler_xyz(self.noises["cube_rot_noise"][:, 0], 
-													  self.noises["cube_rot_noise"][:, 1],
-													  self.noises["cube_rot_noise"][:, 2])
+			cube_rot_noise_quat = quat_from_euler_xyz(self.noises["cube_rot_noise"][self.use_adv_noise_env_idx, 0], 
+													  self.noises["cube_rot_noise"][self.use_adv_noise_env_idx, 1],
+													  self.noises["cube_rot_noise"][self.use_adv_noise_env_idx, 2])
 			
-			cube_rot = self.obs_dict["object_pose_cam_randomized"][:, 3:7]
+			cube_rot = self.obs_dict["object_pose_cam_randomized"][self.use_adv_noise_env_idx, 3:7]
 			noisy_cube_rot = quat_mul(cube_rot, cube_rot_noise_quat)
 
 			quat_diff = quat_mul(cube_rot, quat_conjugate(noisy_cube_rot))
@@ -282,12 +283,10 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 
 			noisy_cube_pose_obs = torch.cat((noisy_cube_pos, noisy_cube_rot), axis=-1)
 			
-			# print("============================= Cube Pose Noise Added!!!!!  =============================")
-			self.obs_dict["object_pose_cam_randomized"] = noisy_cube_pose_obs
+			self.obs_dict["object_pose_cam_randomized"][self.use_adv_noise_env_idx,:] = noisy_cube_pose_obs
 			
-		if self.use_adv_noise and "dof_pos_noise" in self.noises.keys():
-			# print("=============================  DoF Pos Noise Added!!!!!   =============================")
-			self.obs_dict["dof_pos_randomized"] = self.obs_dict["dof_pos_randomized"] + self.noises["dof_pos_noise"]
+		if "dof_pos_noise" in self.noises.keys():
+			self.obs_dict["dof_pos_randomized"][self.use_adv_noise_env_idx,:] = self.obs_dict["dof_pos_randomized"][self.use_adv_noise_env_idx,:] + self.noises["dof_pos_noise"][self.use_adv_noise_env_idx,:]
 
 class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
@@ -330,7 +329,7 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 
 	def get_num_obs_dict(self, num_dofs):
 		num_obs_dict = AllegroHandDextremeADR.get_num_obs_dict(self, num_dofs)
-		num_obs_dict["last_actions_full"] = 16 + 3 + 3 + 16
+		# num_obs_dict["last_actions_full"] = 16 + 3 + 3 + 16
 		num_obs_dict["base_actions"] = 16
 		return num_obs_dict
 
@@ -340,9 +339,10 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 		self.base_controller = BaseControllerPlugin(self.base_controller_checkpoint, self.device)
 
 	def pre_physics_step(self, delta_actions):
-		self.use_adv_noise = False
-		if np.random.rand() < self.adv_noise_prob:
-			self.use_adv_noise = True
+		use_adv_noise_mask = (torch.rand(size=(self.num_envs,)) < self.adv_noise_prob)
+		self.use_adv_noise_env_idx = use_adv_noise_mask.nonzero(as_tuple=False).flatten()
+
+		# print(len(self.use_adv_noise_env_idx))
 
 		self.noises, self.noises_full, _ = self.noise_generator.get_noise(self.obs_dict)
 		
@@ -353,24 +353,23 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 
 		actions = self.base_actions + self.delta_actions * self.delta_action_scale
 		actions = torch.clamp(actions, -1.0, 1.0)
-		if self.use_adv_noise and "action_noise" in self.noises.keys():
-			actions = actions + self.noises["action_noise"]
+		if "action_noise" in self.noises.keys():
+			actions[self.use_adv_noise_env_idx,:] = actions[self.use_adv_noise_env_idx,:] + self.noises["action_noise"][self.use_adv_noise_env_idx,:]
 	
 		super().pre_physics_step(actions)
 
 	def compute_observations(self):
 		super().compute_observations()
-		self.obs_dict["last_actions_full"][:] = self.noises_full
-		self.obs_dict["base_actions"][:] = self.base_actions
+		# self.obs_dict["last_actions_full"][:] = self.noises_full
 
-		if self.use_adv_noise and "cube_pos_noise" in self.noises.keys() and "cube_rot_noise" in self.noises.keys():
-			noisy_cube_pos = self.obs_dict["object_pose_cam_randomized"][:, 0:3] + self.noises["cube_pos_noise"]
+		if "cube_pos_noise" in self.noises.keys() and "cube_rot_noise" in self.noises.keys():
+			noisy_cube_pos = self.obs_dict["object_pose_cam_randomized"][self.use_adv_noise_env_idx, 0:3] + self.noises["cube_pos_noise"][self.use_adv_noise_env_idx,:]
 
-			cube_rot_noise_quat = quat_from_euler_xyz(self.noises["cube_rot_noise"][:, 0], 
-													  self.noises["cube_rot_noise"][:, 1],
-													  self.noises["cube_rot_noise"][:, 2])
+			cube_rot_noise_quat = quat_from_euler_xyz(self.noises["cube_rot_noise"][self.use_adv_noise_env_idx, 0], 
+													  self.noises["cube_rot_noise"][self.use_adv_noise_env_idx, 1],
+													  self.noises["cube_rot_noise"][self.use_adv_noise_env_idx, 2])
 			
-			cube_rot = self.obs_dict["object_pose_cam_randomized"][:, 3:7]
+			cube_rot = self.obs_dict["object_pose_cam_randomized"][self.use_adv_noise_env_idx, 3:7]
 			noisy_cube_rot = quat_mul(cube_rot, cube_rot_noise_quat)
 
 			quat_diff = quat_mul(cube_rot, quat_conjugate(noisy_cube_rot))
@@ -378,10 +377,10 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 
 			noisy_cube_pose_obs = torch.cat((noisy_cube_pos, noisy_cube_rot), axis=-1)
 			
-			self.obs_dict["object_pose_cam_randomized"] = noisy_cube_pose_obs
+			self.obs_dict["object_pose_cam_randomized"][self.use_adv_noise_env_idx,:] = noisy_cube_pose_obs
 			
-		if self.use_adv_noise and "dof_pos_noise" in self.noises.keys():
-			self.obs_dict["dof_pos_randomized"] = self.obs_dict["dof_pos_randomized"] + self.noises["dof_pos_noise"]
+		if "dof_pos_noise" in self.noises.keys():
+			self.obs_dict["dof_pos_randomized"][self.use_adv_noise_env_idx,:] = self.obs_dict["dof_pos_randomized"][self.use_adv_noise_env_idx,:] + self.noises["dof_pos_noise"][self.use_adv_noise_env_idx,:]
 
 	def plot_residual_actions(self):
 		if self.realtime_plots:
