@@ -29,6 +29,7 @@ import math
 import os
 
 from typing import Tuple, Dict, List, Set
+from torch import Tensor
 
 import numpy as np
 
@@ -219,13 +220,20 @@ class AdversarialActionAndObservationNoiseGeneratorPlugin(BaseNoiseGeneratorPlug
 		res_dict = super().get_noise(obs, convert_to_rl_games_obs)
 		base_noise = res_dict["noise"]
 
+		noise = self.scale_base_noise(base_noise)
+		return noise, base_noise, res_dict
+
+	def scale_base_noise(self, base_noise: Tensor) -> Dict[str, Tensor]:
+		assert base_noise.shape[1] == 38, "Base noise dimension (" + str(base_noise.shape[1]) + ") does not match with noise generator dimension (38)"
+
 		noise = {}
-		noise["action_noise"] = base_noise[:,0:16] * self.action_noise_scale
+		noise["action_noise"]   = base_noise[:, 0:16] * self.action_noise_scale
 		noise["cube_pos_noise"] = base_noise[:,16:19] * self.cube_pos_noise_scale
 		noise["cube_rot_noise"] = base_noise[:,19:22] * self.cube_rot_noise_scale
-		noise["dof_pos_noise"] = base_noise[:,22:38] * self.dof_pos_noise_scale
+		noise["dof_pos_noise"]  = base_noise[:,22:38] * self.dof_pos_noise_scale
 
-		return noise, base_noise, res_dict
+		return noise
+
 
 class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
@@ -239,8 +247,9 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 	def _read_cfg(self):
 		super()._read_cfg()
 	
-		self.noise_generator_checkpoint = self.cfg["onnx_noise_gen_checkpoint"]
-		self.adv_noise_prob = self.cfg["env"]["adv_noise_prob"]
+		self.adv_noise_prob = self.cfg["env"].get("adv_noise_prob", 0.0)
+		self.select_noise_by_value = self.cfg["env"].get("select_noise_by_value", False)
+		self.noise_generator_path = self.cfg.get("onnx_noise_gen_path", None)
 
 	def get_num_obs_dict(self, num_dofs):
 		num_obs_dict = AllegroHandDextremeADR.get_num_obs_dict(self, num_dofs)
@@ -249,7 +258,60 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 
 	def _init_post_sim_buffers(self):
 		super()._init_post_sim_buffers()
-		self.noise_generator = AdversarialActionAndObservationNoiseGeneratorPlugin(self.noise_generator_checkpoint, self.device)
+
+		self.noise_generator = None
+		if self.noise_generator_path == '' or self.noise_generator_path is None:
+			print("No noise generator loaded")
+		elif os.path.isfile(self.noise_generator_path):
+			print("Loading model: ", self.noise_generator_path)
+			self.noise_generator = AdversarialActionAndObservationNoiseGeneratorPlugin(self.noise_generator_path, self.device)
+		elif os.path.isdir(self.noise_generator_path):
+			self.noise_generator: List[AdversarialActionAndObservationNoiseGeneratorPlugin] = []
+			for model in os.scandir(self.noise_generator_path):
+				model_path = os.path.join(self.noise_generator_path, model)
+				if not str(model_path)[-5:] == ".onnx":
+					print("ending_characters: ", str(model_path)[-5:])
+					continue
+				print("Loading model: ", model_path)
+				self.noise_generator.append(AdversarialActionAndObservationNoiseGeneratorPlugin(model_path, self.device))
+			if len(self.noise_generator) == 0:
+				print("No .onnx file found in: ", self.noise_generator_path)
+				self.noise_generator = None
+
+	def generate_noise(self, obs_dict: Dict[str, Tensor]):
+		if self.noise_generator is None:
+			return {}
+		elif isinstance(self.noise_generator, list):
+			noises = []
+			base_noises = []
+			values = []
+			for generator in self.noise_generator:
+				noise, base_noise, res_dict = generator.get_noise(obs_dict)
+				noises.append(noise)
+				base_noises.append(torch.as_tensor(base_noise))
+				values.append(torch.as_tensor(res_dict["values"]))
+
+			if self.select_noise_by_value:	
+				# TODO: Add logic to choose max value noise for each env
+				base_noises_tensor = torch.stack(base_noises, dim=-1)
+				values_tensor = torch.stack(values, dim=-1)
+
+				_, max_value_idx = torch.max(values_tensor, dim=-1)
+				max_value_idx = max_value_idx.flatten()
+
+				worst_base_noise = torch.zeros_like(base_noises[0])
+				for i in range(self.num_envs):
+					worst_base_noise[i, :] = base_noises_tensor[i, :, max_value_idx[i]]
+
+				worst_noise = self.noise_generator[0].scale_base_noise(worst_base_noise)
+				return worst_noise
+			else:
+				rand_id = torch.randint(0, len(self.noise_generator), (1,))
+				return noises[rand_id]
+
+		else:
+			noise, _, _ = self.noise_generator.get_noise(obs_dict)
+			return noise
 
 	def pre_physics_step(self, actions):
 		use_adv_noise_mask = (torch.rand(size=(self.num_envs,)) < self.adv_noise_prob)
@@ -257,7 +319,7 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 
 		# print(len(self.use_adv_noise_env_idx))
 
-		self.noises, self.noises_full, _ = self.noise_generator.get_noise(self.obs_dict)
+		self.noises = self.generate_noise(self.obs_dict)
 		
 		if "action_noise" in self.noises.keys():
 			actions[self.use_adv_noise_env_idx,:] = actions[self.use_adv_noise_env_idx,:] + self.noises["action_noise"][self.use_adv_noise_env_idx,:]
@@ -323,9 +385,10 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 		super()._read_cfg()
 	
 		self.base_controller_checkpoint = self.cfg["onnx_model_checkpoint"]
-		self.noise_generator_checkpoint = self.cfg["onnx_noise_gen_checkpoint"]
-		self.adv_noise_prob = self.cfg["env"]["adv_noise_prob"]
 		self.delta_action_scale = self.cfg["env"]["deltaActionsScale"]
+		self.adv_noise_prob = self.cfg["env"].get("adv_noise_prob", 0.0)
+		self.select_noise_by_value = self.cfg["env"].get("select_noise_by_value", False)
+		self.noise_generator_path = self.cfg.get("onnx_noise_gen_path", None)
 
 	def get_num_obs_dict(self, num_dofs):
 		num_obs_dict = AllegroHandDextremeADR.get_num_obs_dict(self, num_dofs)
@@ -335,8 +398,61 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 
 	def _init_post_sim_buffers(self):
 		super()._init_post_sim_buffers()
-		self.noise_generator = AdversarialActionAndObservationNoiseGeneratorPlugin(self.noise_generator_checkpoint, self.device)
 		self.base_controller = BaseControllerPlugin(self.base_controller_checkpoint, self.device)
+
+		self.noise_generator = None
+		if self.noise_generator_path is None:
+			print("No noise generator loaded")
+		elif os.path.isfile(self.noise_generator_path):
+			print("Loading model: ", self.noise_generator_path)
+			self.noise_generator = AdversarialActionAndObservationNoiseGeneratorPlugin(self.noise_generator_path, self.device)
+		elif os.path.isdir(self.noise_generator_path):
+			self.noise_generator: List[AdversarialActionAndObservationNoiseGeneratorPlugin] = []
+			for model in os.scandir(self.noise_generator_path):
+				model_path = os.path.join(self.noise_generator_path, model)
+				if not str(model_path)[-5:] == ".onnx":
+					print("ending_characters: ", str(model_path)[-5:])
+					continue
+				print("Loading model: ", model_path)
+				self.noise_generator.append(AdversarialActionAndObservationNoiseGeneratorPlugin(model_path, self.device))
+			if len(self.noise_generator) == 0:
+				print("No .onnx file found in: ", self.noise_generator_path)
+				self.noise_generator = None
+
+	def generate_noise(self, obs_dict: Dict[str, Tensor]):
+		if self.noise_generator is None:
+			return {}
+		elif isinstance(self.noise_generator, list):
+			noises = []
+			base_noises = []
+			values = []
+			for generator in self.noise_generator:
+				noise, base_noise, res_dict = generator.get_noise(obs_dict)
+				noises.append(noise)
+				base_noises.append(torch.as_tensor(base_noise))
+				values.append(torch.as_tensor(res_dict["values"]))
+
+			if self.select_noise_by_value:	
+				# TODO: Add logic to choose max value noise for each env
+				base_noises_tensor = torch.stack(base_noises, dim=-1)
+				values_tensor = torch.stack(values, dim=-1)
+
+				_, max_value_idx = torch.max(values_tensor, dim=-1)
+				max_value_idx = max_value_idx.flatten()
+
+				worst_base_noise = torch.zeros_like(base_noises[0])
+				for i in range(self.num_envs):
+					worst_base_noise[i, :] = base_noises_tensor[i, :, max_value_idx[i]]
+
+				worst_noise = self.noise_generator[0].scale_base_noise(worst_base_noise)
+				return worst_noise
+			else:
+				rand_id = torch.randint(0, len(self.noise_generator), (1,))
+				return noises[rand_id]
+
+		else:
+			noise, _, _ = self.noise_generator.get_noise(obs_dict)
+			return noise
 
 	def pre_physics_step(self, delta_actions):
 		use_adv_noise_mask = (torch.rand(size=(self.num_envs,)) < self.adv_noise_prob)
@@ -344,7 +460,7 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 
 		# print(len(self.use_adv_noise_env_idx))
 
-		self.noises, self.noises_full, _ = self.noise_generator.get_noise(self.obs_dict)
+		self.noises = self.generate_noise(self.obs_dict)
 		
 		self.base_actions = self.base_controller.get_action(self.obs_dict)
 

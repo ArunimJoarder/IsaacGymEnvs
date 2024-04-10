@@ -17,9 +17,11 @@ done
 num_envs=4096
 max_iterations=2000
 
+home=`realpath "$(dirname "$0")"`
+
 for(( i=0; i<$num_models; i++ ))
 do
-    python3 train.py \
+    python3 $home/train.py \
         task=AllegroHandDextremeAdversarialObservationsAndActionsEnsemble \
         base_checkpoint=exported_models/AllegroHandADR.onnx \
         headless=True \
@@ -35,12 +37,12 @@ do
         task.ensemble_dir=ensemble_models \
         enable_ensemble=True
 
-    python3 scripts/collect_checkpoints.py \
+    python3 $home/scripts/collect_checkpoints.py \
         -e ${experiment} \
         -m ${i} \
         -d runs/${experiment}_ensemble
 
-    python3 train.py \
+    python3 $home/train.py \
         task=AllegroHandDextremeAdversarialObservationsAndActionsEnsemble \
         base_checkpoint=exported_models/AllegroHandADR.onnx \
         checkpoint="runs/${experiment}_ensemble/${experiment}_${i}.pth" \

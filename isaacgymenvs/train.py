@@ -129,13 +129,13 @@ def launch_rlg_hydra(cfg: DictConfig):
         print("No adr_params_file in cfg.task")
 
     try:
-        if cfg.task.onnx_noise_gen_checkpoint:
-            onnx_noise_gen_checkpoint_path = Path(cfg.task.onnx_noise_gen_checkpoint)
-            if not onnx_noise_gen_checkpoint_path.is_absolute():
-                onnx_noise_gen_checkpoint_path = os.path.join(dirpath, str(onnx_noise_gen_checkpoint_path))
-            cfg.task.onnx_noise_gen_checkpoint = str(onnx_noise_gen_checkpoint_path)
+        if cfg.task.onnx_noise_gen_path:
+            onnx_noise_gen_path_path = Path(cfg.task.onnx_noise_gen_path)
+            if not onnx_noise_gen_path_path.is_absolute():
+                onnx_noise_gen_path_path = os.path.join(dirpath, str(onnx_noise_gen_path_path))
+            cfg.task.onnx_noise_gen_path = str(onnx_noise_gen_path_path)
     except AttributeError:
-        print("No onnx_noise_gen_checkpoint in cfg.task")
+        print("No onnx_noise_gen_path in cfg.task")
 
     try:
         if cfg.train.params.config.train_dir:
