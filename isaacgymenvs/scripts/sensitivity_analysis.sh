@@ -4,12 +4,17 @@
 # set -e
 
 # checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_allegrohand_multigpuOVX_noFabrics_fixedFT_forceScale10_v5_ep_98000_rew_4717.542.pth
-checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/finetuned/last_euler_ft_delta_adv_prob_0.00_new_reward_-20_delta_action_penalty_4096_5000_iters_ep_5000_rew__1752.15_.pth
+# checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/finetuned/last_euler_ft_delta_adv_prob_0.00_new_reward_-20_delta_action_penalty_4096_5000_iters_ep_5000_rew__1752.15_.pth
 # checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/finetuned/last_euler_ft_delta_adv_prob_0.10_new_reward_-20_delta_action_penalty_4096_5000_iters_ep_5000_rew__1812.27_.pth
+
+
+# id: base_chkpt
+# checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_allegrohand_multigpuOVX_noFabrics_fixedFT_forceScale10_v5_ep_98000_rew_4717.542.pth
+checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_euler_ft_delta_ensemble_adv_prob_0.30_adr_ranges_8192_6000_iters_ep_6000_rew__3505.26_.pth
 
 num_games=120000
 num_envs=1024
-timeout=20m
+timeout=21m
 
 # properties=("adr.params.hand_damping" "adr.params.hand_stiffness" "adr.params.hand_joint_friction" "adr.params.hand_armature" "adr.params.hand_effort" "adr.params.hand_lower" "adr.params.hand_upper" "adr.params.hand_mass" "adr.params.hand_friction_fingertips" "adr.params.hand_restitution" "adr.params.object_mass" "adr.params.object_friction" "adr.params.object_restitution" "adr.params.cube_obs_delay_prob" "adr.params.cube_pose_refresh_rate" "adr.params.action_delay_prob" "adr.params.action_latency" "adr.params.affine_action_scaling" "adr.params.affine_action_additive" "adr.params.affine_action_white" "adr.params.affine_cube_pose_scaling" "adr.params.affine_cube_pose_additive" "adr.params.affine_cube_pose_white" "adr.params.affine_dof_pos_scaling" "adr.params.affine_dof_pos_additive" "adr.params.affine_dof_pos_white" "adr.params.rna_alpha")
 
@@ -31,25 +36,25 @@ tmpfile=temp
 
 property_names=A
 filename=$tmpfile
-re=0.5
-le=$re
-while getopts d:t:n:p:r:l:f:g: flag
+r=0.5
+id=base_chkpt
+while getopts d:t:n:p:r:f:g:i: flag
 do
     case "${flag}" in
         d) exp_dir=${OPTARG};;
         t) timeout=${OPTARG};;
         n) num_envs=${OPTARG};;
         p) property_names=${OPTARG};;
-        r) re=${OPTARG};;
-        l) le=${OPTARG};;
+        r) r=${OPTARG};;
         f) filename=${OPTARG};;
         g) num_games=${OPTARG};;
+        i) id=${OPTARG};;
     esac
 done
-# # echo $re $le $property_names $filename
-# python $main_dir/scripts/generate_ranges.py -r $re -p $property_names -f $filename-$re
+# echo $r $property_names $filename
+python $main_dir/scripts/generate_ranges.py -r $r -p $property_names -f $filename-$r
 
-filename=${main_dir}/scripts/ranges/$filename-$re.txt
+filename=${main_dir}/scripts/ranges/$filename-$r.txt
 
 j=0
 while read F  ; do
@@ -61,10 +66,12 @@ while read F  ; do
     elif [ $j -eq 1 ]
     then
         declare -a min_value=( $line )
-    else
+    elif [ $j -eq 2 ]
+    then
         declare -a max_value=( $line )
-    fi
-    # echo $line
+    else
+        declare -a ratio=( $line )
+    fi    # echo $line
     j=$((j + 1))
     # echo $j
 done <$filename
@@ -84,16 +91,14 @@ echo $properties $min_value $max_value $len
 timeout $timeout \
     python $main_dir/train.py \
         task=AllegroHandDextremeADRFinetuningResidualActions \
-        task.onnx_noise_gen_checkpoint=exported_models/AllegroHandAdversarialObservationsAndActions.onnx \
-        base_checkpoint=exported_models/AllegroHandADR.onnx \
         checkpoint=${checkpoint} \
         headless=True \
         test=True \
         num_envs=$num_envs \
         task.env.printNumSuccesses=True \
-        task.experiment_dir=${exp_dir} \
+        task.experiment_dir=${exp_dir}/$r/$id \
         task.experiment=base \
-        task.env.adv_noise_prob=0
+        # task.env.adv_noise_prob=0
         # train.params.config.player.games_num=$num_games 
 
 
@@ -103,17 +108,15 @@ do
     timeout $timeout \
         python $main_dir/train.py \
             task=AllegroHandDextremeADRFinetuningResidualActions \
-            task.onnx_noise_gen_checkpoint=exported_models/AllegroHandAdversarialObservationsAndActions.onnx \
-            base_checkpoint=exported_models/AllegroHandADR.onnx \
             checkpoint=${checkpoint} \
             headless=True \
             test=True \
             num_envs=$num_envs \
             task.env.printNumSuccesses=True \
-            task.experiment_dir=${exp_dir} \
-            task.experiment="${properties[i]} ${min_value[i]} ${max_value[i]}" \
+            task.experiment_dir=${exp_dir}/$r/$id \
+            task.experiment="$id_${properties[i]}_${ratio[i]}_${min_value[i]}_${max_value[i]}" \
             task.task.adr.params.${properties[i]}.init_range=[${min_value[i]},${max_value[i]}] \
-            task.env.adv_noise_prob=0
+            # task.env.adv_noise_prob=0
             # train.params.config.player.games_num=$num_games 
 
 done

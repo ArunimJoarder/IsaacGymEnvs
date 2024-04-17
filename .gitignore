@@ -40,3 +40,6 @@ ranges/
 *.log
 *.out
 /isaacgymenvs/ensemble_models
+*.csv
+images/
+*.mplstyle

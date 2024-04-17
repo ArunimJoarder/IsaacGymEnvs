@@ -135,10 +135,10 @@ env:
   rotEps: 0.1
   actionPenaltyScale: -0.0
   actionDeltaPenaltyScale: -0.0 #-0.01
-  actionNoisePenaltyScale: -0.0
+  actionNoisePenaltyScale: -0.01
   cubeRotNoisePenaltyScale: -0.01
   cubePosNoisePenaltyScale: -0.01
-  dofPosNoisePenaltyScale: -0.0
+  dofPosNoisePenaltyScale: -0.01
   reachGoalBonus: -250
   fallDistance: 0.24
   fallPenalty: 0.0

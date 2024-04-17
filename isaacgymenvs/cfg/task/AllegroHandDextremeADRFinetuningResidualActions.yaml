@@ -30,7 +30,7 @@ env:
   clipActions: 1.0
   discreteActions: False
 
-  adv_noise_prob: 0.1
+  adv_noise_prob: 0.0
   select_noise_by_value: False
   deltaActionsScale: 1.0
 
