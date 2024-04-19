@@ -223,12 +223,12 @@ class AllegroHandDextremeAdversarialActions(AllegroHandDextremeADR):
 
 		if self.print_success_stat:
 			if self.frame % 100 == 0:
-				last_action_noise_avg = self.action_noises.mean(dim=1)
-				last_base_action_avg = self.base_controller_actions.mean(dim=1)
 
-				for i in range(16):
-					# self.eval_summaries.add_scalar(f"base_actions_avg/actuator_{i+1}", last_base_action_avg[i].item(), self.frame)
-					self.eval_summaries.add_scalar(f"action_noises_avg/actuator_{i+1}", last_action_noise_avg[i].item(), self.frame)
+				# print(self.action_noises.shape, self.action_noises.norm(dim=0).shape, self.action_noises.norm(dim=0).mean().shape)
+				action_noise_avg = self.action_noises.abs().mean()
+
+				self.eval_summaries.add_scalar(f"action_noise_avg", action_noise_avg.item(), self.frame)
+
 
 class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeADR, AllegroHandDextremeManualDR, AllegroHandDextreme, ADRVecTask):
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
@@ -283,7 +283,7 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 		rl_device = self.cfg.get("rl_device", "cuda:0")
 
 		self._init_pre_sim_buffers()
-		ADRVecTask.__init__(self, config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, use_dict_obs=True)
+		ADRVecTask.__init__(self, config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, use_dict_obs=True, virtual_screen_capture = virtual_screen_capture, force_render = force_render)
 		self._init_post_sim_buffers()
 
 		reward_keys = ['dist_rew', 'rot_rew', 'action_penalty', 'action_delta_penalty',
@@ -301,12 +301,14 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 			self.total_num_resets = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
 			self.successes_count = torch.zeros(self.max_consecutive_successes + 1, dtype=torch.float, device=self.device)
 			from tensorboardX import SummaryWriter
-			self.eval_summary_dir = "./eval_summaries"
+			self.eval_summary_dir = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "eval_summaries")
 			if self.cfg["experiment_dir"] != '':
-				self.eval_summary_dir += ("/" + self.cfg["experiment_dir"])
+				self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment_dir"])
 			if self.cfg["experiment"] != '':
-				self.eval_summary_dir += ("/" + self.cfg["experiment"])
-
+				self.eval_summary_dir = os.path.join(self.eval_summary_dir,  self.cfg["experiment"])
+			# print("===================================================================")
+			# print(self.eval_summary_dir)
+			# print("===================================================================")
 			# remove the old directory if it exists
 			if os.path.exists(self.eval_summary_dir):
 				import shutil
@@ -766,20 +768,26 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 				#	 print(f"action_abs_avg/dof_{i+1} = ", actions_abs_avg[i].item())
 				# # print(self.actions.cpu().numpy())
 
-				dof_pos_noise_avg = self.dof_pos_noise_scaled.mean(dim=0)
-				object_rot_noise_avg = self.cube_rot_noise_scaled.mean(dim=0)
-				object_pos_noise_avg = self.cube_pos_noise_scaled.mean(dim=0)
-				action_noise_avg = self.action_noise_scaled.mean(dim=0)
+				dof_pos_noise_avg = self.dof_pos_noise_scaled.abs().mean()
+				object_rot_noise_avg = self.cube_rot_noise_scaled.abs().mean()
+				object_pos_noise_avg = self.cube_pos_noise_scaled.abs().mean()
+				action_noise_avg = self.action_noise_scaled.abs().mean()
 				object_rot_noise_avg_angle = self.object_rot_noise.mean()
 
-				labels = ["x", "y", "z"]
-				for i in range(3):
-					self.eval_summaries.add_scalar(f"object_pose_noise_avg/pos_{labels[i]}", object_pos_noise_avg[i].item(), self.frame)
-					self.eval_summaries.add_scalar(f"object_pose_noise_avg/rot_{labels[i]}", object_rot_noise_avg[i].item(), self.frame)
+				self.eval_summaries.add_scalar(f"object_pose_noise_avg/pos", object_pos_noise_avg.item(), self.frame)
+				self.eval_summaries.add_scalar(f"object_pose_noise_avg/rot", object_rot_noise_avg.item(), self.frame)
+				self.eval_summaries.add_scalar(f"dof_pos_noise_avg", dof_pos_noise_avg.item(), self.frame)
+				self.eval_summaries.add_scalar(f"action_noise_avg", action_noise_avg.item(), self.frame)
 
-				for i in range(16):
-					self.eval_summaries.add_scalar(f"dof_pos_noise_avg/dof_{i+1}", dof_pos_noise_avg[i].item(), self.frame)
-					self.eval_summaries.add_scalar(f"action_noise_avg/dof_{i+1}", action_noise_avg[i].item(), self.frame)
+
+				# labels = ["x", "y", "z"]
+				# for i in range(3):
+				# 	self.eval_summaries.add_scalar(f"object_pose_noise_avg/pos_{labels[i]}", object_pos_noise_avg[i].item(), self.frame)
+				# 	self.eval_summaries.add_scalar(f"object_pose_noise_avg/rot_{labels[i]}", object_rot_noise_avg[i].item(), self.frame)
+
+				# for i in range(16):
+				# 	self.eval_summaries.add_scalar(f"dof_pos_noise_avg/dof_{i+1}", dof_pos_noise_avg[i].item(), self.frame)
+				# 	self.eval_summaries.add_scalar(f"action_noise_avg/dof_{i+1}", action_noise_avg[i].item(), self.frame)
 
 				# dof_pos_noise_abs_avg = torch.abs(self.dof_pos_noise_scaled).mean(dim=0)
 				# object_rot_noise_abs_avg = torch.abs(self.cube_rot_noise_scaled).mean(dim=0)
@@ -920,7 +928,7 @@ class AllegroHandDextremeAdversarialObservations(AllegroHandDextremeADR, Allegro
 		rl_device = self.cfg.get("rl_device", "cuda:0")
 
 		self._init_pre_sim_buffers()
-		ADRVecTask.__init__(self, config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, use_dict_obs=True)
+		ADRVecTask.__init__(self, config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, use_dict_obs=True, virtual_screen_capture = virtual_screen_capture, force_render = force_render)
 		self._init_post_sim_buffers()
 
 		reward_keys = ['dist_rew', 'rot_rew', 'action_penalty', 'action_delta_penalty',

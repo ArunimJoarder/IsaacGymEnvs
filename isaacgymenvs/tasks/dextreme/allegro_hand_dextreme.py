@@ -108,7 +108,7 @@ class AllegroHandDextreme(ADRVecTask):
         rl_device = self.cfg.get("rl_device", "cuda:0")
 
         self._init_pre_sim_buffers()
-        super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, use_dict_obs=True)
+        super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, use_dict_obs=True, virtual_screen_capture = virtual_screen_capture, force_render = force_render)
         self._init_post_sim_buffers()
 
         reward_keys = ['dist_rew', 'rot_rew', 'action_penalty', 'action_delta_penalty',
@@ -1244,8 +1244,8 @@ class AllegroHandDextreme(ADRVecTask):
             print("New episode length: ", self.max_episode_length)
 
         if self.viewer != None:
-            cam_pos = gymapi.Vec3(10.0, 5.0, 1.0)
-            cam_target = gymapi.Vec3(6.0, 5.0, 0.0)
+            cam_pos = gymapi.Vec3(0.3, 0.3, 0.75)
+            cam_target = gymapi.Vec3(0.0, -0.1, 0.5)
             self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
 

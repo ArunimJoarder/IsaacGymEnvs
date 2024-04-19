@@ -6,7 +6,8 @@
 # run the container locally and debug it inside. (thanks Github Copilot)
 DEXTREME_WS="`realpath "$(dirname "$0")"/../../../`"
 
-custom_flags="--nv --writable -B $DEXTREME_WS/IsaacGymEnvs:/deXtreme/IsaacGymEnvs,$DEXTREME_WS/rl_games:/deXtreme/rl_games"
+# custom_flags="--nv --writable -B $DEXTREME_WS/IsaacGymEnvs:/deXtreme/IsaacGymEnvs,$DEXTREME_WS/rl_games:/deXtreme/rl_games"
+custom_flags="--nv --writable -B $DEXTREME_WS/IsaacGymEnvs:/deXtreme/IsaacGymEnvs"
 
 echo $custom_flags
 

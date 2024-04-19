@@ -25,6 +25,22 @@ def tflog2pandas(path: str) -> pd.DataFrame:
     """
 
     exp_name = os.path.basename(os.path.dirname(path))
+    checkpoint_name = os.path.basename(os.path.dirname(os.path.dirname(path)))
+
+    if exp_name == "base":
+        upper_lim = pd.NA
+        lower_lim = pd.NA
+        ratio = 0.00
+        param_name = "base"
+    else:
+        exp_name_parts = exp_name.split("_")
+        upper_lim = exp_name_parts[-1]
+        lower_lim = exp_name_parts[-2]
+        ratio = exp_name_parts[-3]
+        param_name = ""
+        for i in range(len(exp_name_parts[:-4])):
+            param_name += exp_name_parts[i] + "_"
+        param_name += exp_name_parts[-4]
 
     DEFAULT_SIZE_GUIDANCE = {
         "compressedHistograms": 1,
@@ -32,7 +48,7 @@ def tflog2pandas(path: str) -> pd.DataFrame:
         "scalars": 0,  # 0 means load all
         "histograms": 1,
     }
-    runlog_data = pd.DataFrame({"experiment": [], "metric": [], "value": [], "step": []})
+    runlog_data = pd.DataFrame({"checkpoint": [], "param": [], "ratio": [], "lower": [], "upper": [], "metric": [], "value": [], "step": []})
     try:
         event_acc = EventAccumulator(path, DEFAULT_SIZE_GUIDANCE)
         event_acc.Reload()
@@ -41,7 +57,7 @@ def tflog2pandas(path: str) -> pd.DataFrame:
             event_list = event_acc.Scalars(tag)
             values = list(map(lambda x: x.value, event_list))
             step = list(map(lambda x: x.step, event_list))
-            r = {"experiment": [exp_name] * len(step), "metric": [tag] * len(step), "value": values, "step": step}
+            r = {"checkpoint": [checkpoint_name] * len(step), "param": [param_name] * len(step), "ratio": [ratio] * len(step), "lower": [lower_lim] * len(step), "upper": [upper_lim] * len(step), "metric": [tag] * len(step), "value": values, "step": step}
             r = pd.DataFrame(r)
             runlog_data = pd.concat([runlog_data, r])
     # Dirty catch of DataLossError
@@ -145,12 +161,12 @@ def main(logdir_or_logfile: str, write_pkl: bool, write_csv: bool, out_dir: str,
         os.makedirs(out_dir, exist_ok=True)
         if write_csv:
             print("saving to csv file")
-            out_file = os.path.join(out_dir, filename + "_eval.csv")
+            out_file = os.path.join(out_dir, filename + ".csv")
             print(out_file)
             all_logs.to_csv(out_file, index=None)
         if write_pkl:
             print("saving to pickle file")
-            out_file = os.path.join(out_dir, filename + "_eval.pkl")
+            out_file = os.path.join(out_dir, filename + ".pkl")
             print(out_file)
             all_logs.to_pickle(out_file)
     else:

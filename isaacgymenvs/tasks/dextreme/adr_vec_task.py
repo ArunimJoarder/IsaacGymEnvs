@@ -61,6 +61,7 @@ class RolloutWorkerModes:
 
 from isaacgymenvs.tasks.base.vec_task import Env, VecTask
 
+SCREEN_CAPTURE_RESOLUTION = (1027*2, 768*2)
 
 class EnvDextreme(Env):
 
@@ -103,7 +104,7 @@ class EnvDextreme(Env):
 
 class VecTaskDextreme(EnvDextreme, VecTask):
 
-    def __init__(self, config, rl_device, sim_device, graphics_device_id, headless, use_dict_obs=False):        
+    def __init__(self, config, rl_device, sim_device, graphics_device_id, headless, use_dict_obs=False, virtual_screen_capture: bool = False, force_render: bool = False):        
         """Initialise the `VecTask`.
 
         Args:
@@ -115,6 +116,14 @@ class VecTaskDextreme(EnvDextreme, VecTask):
         
         EnvDextreme.__init__(self, config, rl_device, sim_device, graphics_device_id, headless, use_dict_obs=use_dict_obs)
 
+        self.virtual_screen_capture = virtual_screen_capture
+        self.virtual_display = None
+        if self.virtual_screen_capture:
+            from pyvirtualdisplay.smartdisplay import SmartDisplay
+            self.virtual_display = SmartDisplay(size=SCREEN_CAPTURE_RESOLUTION)
+            self.virtual_display.start()
+        self.force_render = force_render
+
         self.sim_params = self._VecTask__parse_sim_params(self.cfg["physics_engine"], self.cfg["sim"])
         if self.cfg["physics_engine"] == "physx":
             self.physics_engine = gymapi.SIM_PHYSX
@@ -123,8 +132,6 @@ class VecTaskDextreme(EnvDextreme, VecTask):
         else:
             msg = f"Invalid physics engine backend: {self.cfg['physics_engine']}"
             raise ValueError(msg)
-
-        self.virtual_display = None 
 
         # optimization flags for pytorch JIT
         torch._C._jit_set_profiling_mode(False)
@@ -488,7 +495,7 @@ class VecTaskDextreme(EnvDextreme, VecTask):
 
 class ADRVecTask(VecTaskDextreme):
 
-    def __init__(self, config, rl_device, sim_device, graphics_device_id, headless, use_dict_obs=False):
+    def __init__(self, config, rl_device, sim_device, graphics_device_id, headless, use_dict_obs=False, virtual_screen_capture: bool = False, force_render: bool = False):
 
         self.adr_cfg = self.cfg["task"].get("adr", {})
         self.use_adr = self.adr_cfg.get("use_adr", False)
@@ -555,7 +562,7 @@ class ADRVecTask(VecTaskDextreme):
 
             self.adr_objective_queues = [deque(maxlen=self.adr_queue_threshold_length) for _ in range(2*self.num_adr_params)]
 
-        super().__init__(config, rl_device, sim_device, graphics_device_id, headless, use_dict_obs=use_dict_obs)
+        super().__init__(config, rl_device, sim_device, graphics_device_id, headless, use_dict_obs=use_dict_obs, virtual_screen_capture = virtual_screen_capture, force_render = force_render)
 
 
     def get_current_adr_params(self, dr_params):

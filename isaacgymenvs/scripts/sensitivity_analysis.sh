@@ -10,7 +10,11 @@
 
 # id: base_chkpt
 # checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_allegrohand_multigpuOVX_noFabrics_fixedFT_forceScale10_v5_ep_98000_rew_4717.542.pth
-checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_euler_ft_delta_ensemble_adv_prob_0.30_adr_ranges_8192_6000_iters_ep_6000_rew__3505.26_.pth
+# id: ft_delta_ensemble_adv_prob_0.30_value_selection
+# checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_euler_ft_delta_ensemble_adv_prob_0.30_adr_ranges_8192_6000_iters_ep_6000_rew__3505.26_.pth
+# id: ft_delta_no_adv
+checkpoint=${HOME}/deXtreme/IsaacGymEnvs/isaacgymenvs/runs/dextreme_checkpoints/last_euler_ft_delta_no_ensemble_no_adv_adr_ranges_8192_6000_iters_ep_6000_rew__3308.98_.pth
+
 
 num_games=120000
 num_envs=1024

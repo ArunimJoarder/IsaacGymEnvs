@@ -22,36 +22,36 @@ params:
         fixed_sigma: True
 
     inputs:
-      # dof_pos: {}
-      # object_pose: {}
-      # goal_pose: {}
-      # goal_relative_rot: {}
-      # last_actions_full: {}
-
       dof_pos: {}
-      dof_vel: {}
-      dof_force: {}
-
       object_pose: {}
-      object_pose_cam_randomized: {}
-      object_vels: {}
-
       goal_pose: {}
       goal_relative_rot: {}
-
       last_actions: {}
-      # last_actions_full: {}
 
-      stochastic_delay_params: {}
-      affine_params: {}
+      # dof_pos: {}
+      # dof_vel: {}
+      # dof_force: {}
 
-      cube_random_params: {}
-      hand_random_params: {}
-      ft_force_torques: {}
-      gravity_vec: {}
-      ft_states: {}
-      rot_dist: {}
-      rb_forces: {}
+      # object_pose: {}
+      # object_pose_cam_randomized: {}
+      # object_vels: {}
+
+      # goal_pose: {}
+      # goal_relative_rot: {}
+
+      # last_actions: {}
+      # # last_actions_full: {}
+
+      # stochastic_delay_params: {}
+      # affine_params: {}
+
+      # cube_random_params: {}
+      # hand_random_params: {}
+      # ft_force_torques: {}
+      # gravity_vec: {}
+      # ft_states: {}
+      # rot_dist: {}
+      # rb_forces: {}
 
     mlp:
       units: [128, 128]

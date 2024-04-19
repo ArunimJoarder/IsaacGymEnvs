@@ -41,7 +41,6 @@ def plot_lines(df: pd.DataFrame, chkpt: str, metric: str):
 
     # Put a legend to the right of the current axis
     ax.legend(labels, loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=4)
-    plt.grid(visible=True, which='major', axis='y', linewidth=5, linestyle='-')
 
     # figsize: 18.5, 11
     # plt.show()
@@ -56,27 +55,15 @@ def plot_lines(df: pd.DataFrame, chkpt: str, metric: str):
 @click.option("--steady-state-cutoff", "-s", help="steps after which model stabilizes", default=6000)
 def main(df_file: str, steady_state_cutoff: int):
     df = pd.read_csv(df_file)
-    ignore_params = ["rna_alpha", "hand_armature", "hand_effort", "hand_mass", "object_mass", "object_friction", "hand_friction_fingertips", "action_delay_prob"]
-
-    for i_param in ignore_params:
-        mask = df["param"] == i_param
-        df = df[~mask]
-
 
     steady_state_df = df[df["step"] > steady_state_cutoff]
- 
-    for metric in ["consecutive_successes", "last_ep_successes"]:
-        metric_ss_df = steady_state_df[steady_state_df["metric"] == metric]
+    
+    mean_df = steady_state_df.groupby(['experiment', 'metric'])['value'].mean().sort_index().rename("mean")
+    std_df = steady_state_df.groupby(['experiment', 'metric'])['value'].std().sort_index().rename("std")
 
-        mean_df = metric_ss_df.groupby(['checkpoint', 'param', 'ratio'])['value'].mean().sort_index()
+    eval_df = pd.concat([mean_df, std_df], axis=1)
 
-        for chkpt in mean_df.index.get_level_values(0).unique():
-            chkpt_mean_df: pd.Series = mean_df[chkpt]
-            chkpt_mean_df = (chkpt_mean_df - chkpt_mean_df["base"][0.0]) / chkpt_mean_df["base"][0.0] * 100
-            # print(chkpt_mean_df.to_string())
-            if chkpt == "base_chkpt":
-                chkpt = "base_controller"
-            plot_lines(chkpt_mean_df, chkpt, metric)
+    print(eval_df.to_string())
 
 if __name__ == "__main__":
     main()

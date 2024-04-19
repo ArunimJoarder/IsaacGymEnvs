@@ -86,7 +86,7 @@ env:
   rotEps: 0.1
   actionPenaltyScale: -0.01
   actionDeltaPenaltyScale: -0.2 #-0.01
-  reachGoalBonus: -250
+  reachGoalBonus: -50
   fallDistance: 0.24
   fallPenalty: 0.0
 
