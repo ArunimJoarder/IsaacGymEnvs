@@ -440,6 +440,8 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 
 		self.base_controller = BaseControllerPlugin(self.base_controller_checkpoint, self.device)
 
+		self.goal_wrt_wrist_rot = torch.zeros((self.num_envs, 4), dtype=torch.float, device=self.device)
+
 	def update_curriculum_clips(self):
 		if self.last_step > 0 and self.last_step % self.curriculum_sched_freq == 0:
 
@@ -508,6 +510,8 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 		self.base_controller_actions = self.base_controller.get_action(self.obs_dict)
 		actions = torch.clamp(self.base_controller_actions + self.action_noise_scaled, -1.0, 1.0)
 
+		self.adv_actions =  actions
+
 		self.actions_full = obs_and_action_noises.clone().to(self.device)
 
 		self.apply_actions(actions)
@@ -515,14 +519,21 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 
 	def add_noise_to_observations(self):
 		if self.use_adr:
-			noisy_cube_pos = self.obs_dict["object_pose_cam_randomized"][:, 0:3] + self.cube_pos_noise_scaled
+			self.adr_cube_pos = self.obs_dict["object_pose_cam_randomized"][:, 0:3]
+			self.adr_cube_rot = self.obs_dict["object_pose_cam_randomized"][:, 3:7]
+			self.adr_dof_pos = self.obs_dict["dof_pos_randomized"]
+
+			noisy_cube_pos = self.object_pose_wrt_wrist[:, 0:3] + self.cube_pos_noise_scaled
 
 			cube_rot_noise_quat = quat_from_euler_xyz(self.cube_rot_noise_scaled[:, 0], 
 													  self.cube_rot_noise_scaled[:, 1],
 													  self.cube_rot_noise_scaled[:, 2])
 			
-			cube_rot = self.obs_dict["object_pose_cam_randomized"][:, 3:7]
+			cube_rot = self.object_pose_wrt_wrist[:, 3:7]
 			noisy_cube_rot = quat_mul(cube_rot, cube_rot_noise_quat)
+			# noisy_cube_rot = cube_rot
+
+			self.cube_rot_noise_scaled_quat_space = noisy_cube_rot - cube_rot
 
 			quat_diff = quat_mul(cube_rot, quat_conjugate(noisy_cube_rot))
 			rot_dist = 2.0 * torch.asin(torch.clamp(torch.norm(quat_diff[:, 0:3], p=2, dim=-1), max=1.0))
@@ -530,8 +541,19 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 
 			noisy_cube_pose_obs = torch.cat((noisy_cube_pos, noisy_cube_rot), axis=-1)
 			
+			noisy_dof_pos = self.obs_dict["dof_pos"] + self.dof_pos_noise_scaled
+
 			self.obs_dict["object_pose_cam_randomized"] = noisy_cube_pose_obs
-			self.obs_dict["dof_pos_randomized"] = self.obs_dict["dof_pos_randomized"] + self.dof_pos_noise_scaled
+			self.obs_dict["dof_pos_randomized"] = noisy_dof_pos
+			self.obs_dict["goal_relative_rot_cam_randomized"][:] = quat_mul(noisy_cube_pose_obs[:, 3:7], quat_conjugate(self.goal_wrt_wrist_rot))
+
+			self.true_cube_pos = self.object_pose_wrt_wrist[:, 0:3]
+			self.true_cube_rot = self.object_pose_wrt_wrist[:, 3:7]
+			self.true_dof_pos = self.obs_dict["dof_pos"]
+			
+			self.adv_cube_pos = noisy_cube_pos
+			self.adv_cube_rot = noisy_cube_rot
+			self.adv_dof_pos = noisy_dof_pos
 		else:
 			pass
 
@@ -545,7 +567,8 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 			
 			white_noise = self.sample_gaussian_adr("affine_action_white", self.all_env_ids, trailing_dim=16)
 			actions = self.affine_actions_scaling * actions + self.affine_actions_additive + white_noise
-					
+			self.adr_actions_err = self.affine_actions_additive + white_noise
+
 			return actions
 		else:
 			# anneal action latency 
@@ -772,13 +795,55 @@ class AllegroHandDextremeAdversarialObservationsAndActions(AllegroHandDextremeAD
 				object_rot_noise_avg = self.cube_rot_noise_scaled.abs().mean()
 				object_pos_noise_avg = self.cube_pos_noise_scaled.abs().mean()
 				action_noise_avg = self.action_noise_scaled.abs().mean()
+				object_rot_noise_quat_space_avg = self.cube_rot_noise_scaled_quat_space.abs().mean()
 				object_rot_noise_avg_angle = self.object_rot_noise.mean()
 
 				self.eval_summaries.add_scalar(f"object_pose_noise_avg/pos", object_pos_noise_avg.item(), self.frame)
 				self.eval_summaries.add_scalar(f"object_pose_noise_avg/rot", object_rot_noise_avg.item(), self.frame)
+				self.eval_summaries.add_scalar(f"object_pose_noise_avg/rot_quat_space", object_rot_noise_quat_space_avg.item(), self.frame)
 				self.eval_summaries.add_scalar(f"dof_pos_noise_avg", dof_pos_noise_avg.item(), self.frame)
 				self.eval_summaries.add_scalar(f"action_noise_avg", action_noise_avg.item(), self.frame)
 
+
+				adv_cube_pos_error = (self.adv_cube_pos - self.true_cube_pos)
+				# print(adv_cube_pos_error.min(dim=0).values.shape, adv_cube_pos_error.min(dim=1).values.shape)
+				# adv_err_min = adv_cube_pos_error.min(dim=0).values.mean()
+				# adv_err_max = adv_cube_pos_error.max(dim=0).values.mean()
+
+				adv_err_min = adv_cube_pos_error[adv_cube_pos_error < 0.0].mean()
+				adv_err_max = adv_cube_pos_error[adv_cube_pos_error > 0.0].mean()
+
+				adr_cube_pos_error = (self.adr_cube_pos - self.true_cube_pos)
+				# adr_err_min = adr_cube_pos_error.min(dim=0).values.mean()
+				# adr_err_max = adr_cube_pos_error.max(dim=0).values.mean()
+
+				adr_err_min = adr_cube_pos_error[adr_cube_pos_error < 0.0].mean()
+				adr_err_max = adr_cube_pos_error[adr_cube_pos_error > 0.0].mean()
+
+				self.eval_summaries.add_scalar(f"noise_comparison/adr_min", adr_err_min.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/adr_max", adr_err_max.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/adv_min", adv_err_min.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/adv_max", adv_err_max.item(), self.frame)
+
+				adr_dof_pos_err = (self.adr_dof_pos - self.true_dof_pos).abs().mean()
+				adr_cube_pos_err = (self.adr_cube_pos - self.true_cube_pos).abs().mean()
+				adr_cube_rot_err = (self.adr_cube_rot - self.true_cube_rot).abs().mean()
+				adr_actions_err = (self.adr_actions_err).abs().mean()
+				
+				adv_dof_pos_err = (self.adv_dof_pos - self.true_dof_pos).abs().mean()
+				adv_cube_pos_err = (self.adv_cube_pos - self.true_cube_pos).abs().mean()
+				adv_cube_rot_err = (self.adv_cube_rot - self.true_cube_rot).abs().mean()
+				adv_actions_err = (self.adv_actions - self.base_controller_actions).abs().mean()
+
+				self.eval_summaries.add_scalar(f"noise_comparison/actions/adr", adr_actions_err.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/dof_pos/adr", adr_dof_pos_err.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/cube_pos/adr", adr_cube_pos_err.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/cube_rot/adr", adr_cube_rot_err.item(), self.frame)
+
+				self.eval_summaries.add_scalar(f"noise_comparison/actions/adv", adv_actions_err.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/dof_pos/adv", adv_dof_pos_err.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/cube_pos/adv", adv_cube_pos_err.item(), self.frame)
+				self.eval_summaries.add_scalar(f"noise_comparison/cube_rot/adv", adv_cube_rot_err.item(), self.frame)
 
 				# labels = ["x", "y", "z"]
 				# for i in range(3):

@@ -62,24 +62,25 @@ class BaseNoiseGeneratorPlugin:
 		self.obs_spec = {
 							'obs': {
 								'names': ['dof_pos',
-										  'dof_vel',
-										  'dof_force',
+										#   'dof_vel',
+										#   'dof_force',
 										  'object_pose',
-										  'object_pose_cam_randomized',
-										  'object_vels',
+										#   'object_pose_cam_randomized',
+										#   'object_vels',
 										  'goal_pose',
 										  'goal_relative_rot',
 										  'last_actions',
-										#   'last_actions_full',
-										  'stochastic_delay_params',
-										  'affine_params',
-										  'cube_random_params',
-										  'hand_random_params',
-										  'ft_force_torques',
-										  'gravity_vec',
-										  'ft_states',
-										  'rot_dist',
-										  'rb_forces'],
+										# #   'last_actions_full',
+										#   'stochastic_delay_params',
+										#   'affine_params',
+										#   'cube_random_params',
+										#   'hand_random_params',
+										#   'ft_force_torques',
+										#   'gravity_vec',
+										#   'ft_states',
+										#   'rot_dist',
+										#   'rb_forces',
+										 ],
 								'concat': True,
 								'space_name': 'observation_space'
 							},
@@ -291,6 +292,8 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 				base_noises.append(torch.as_tensor(base_noise))
 				values.append(torch.as_tensor(res_dict["values"]))
 
+			self.all_generated_noises = noises
+
 			if self.select_noise_by_value:	
 				# TODO: Add logic to choose max value noise for each env
 				base_noises_tensor = torch.stack(base_noises, dim=-1)
@@ -312,6 +315,22 @@ class AllegroHandDextremeADRFinetuning(AllegroHandDextremeADR):
 		else:
 			noise, _, _ = self.noise_generator.get_noise(obs_dict)
 			return noise
+
+	def compute_reward(self, actions):
+		super().compute_reward(actions)
+
+		if self.print_success_stat:
+			if self.frame % 50 == 0:
+				for i, noise in enumerate(self.all_generated_noises):
+					dof_pos_noise_avg = noise["dof_pos_noise"].abs().mean()
+					object_rot_noise_avg = noise["cube_rot_noise"].abs().mean()
+					object_pos_noise_avg = noise["cube_pos_noise"].abs().mean()
+					action_noise_avg = noise["action_noise"].abs().mean()
+
+					self.eval_summaries.add_scalar(f"object_pose_noise_avg/pos/generator_" + str(i), object_pos_noise_avg.item(), self.frame)
+					self.eval_summaries.add_scalar(f"object_pose_noise_avg/rot/generator_" + str(i), object_rot_noise_avg.item(), self.frame)
+					self.eval_summaries.add_scalar(f"dof_pos_noise_avg/generator_" + str(i), dof_pos_noise_avg.item(), self.frame)
+					self.eval_summaries.add_scalar(f"action_noise_avg/generator_" + str(i), action_noise_avg.item(), self.frame)
 
 	def pre_physics_step(self, actions):
 		use_adv_noise_mask = (torch.rand(size=(self.num_envs,)) < self.adv_noise_prob)
@@ -604,6 +623,9 @@ class AllegroHandDextremeADRFinetuningResidualActions(AllegroHandDextremeADR):
 				# for i in range(16):
 				#	 print(f"action_abs_avg/dof_{i+1} = ", actions_abs_avg[i].item())
 				# # print(self.actions.cpu().numpy())
+
+				self.eval_summaries.add_scalar("power/power", self.power.mean().item(), self.frame)
+				self.eval_summaries.add_scalar("power/torque", self.dof_force_tensor.abs().mean().item(), self.frame)
 
 				# create a matplotlib bar chart of the self.successes_count
 				import matplotlib.pyplot as plt

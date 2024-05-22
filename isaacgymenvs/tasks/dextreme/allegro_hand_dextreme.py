@@ -119,6 +119,8 @@ class AllegroHandDextreme(ADRVecTask):
             self.apply_reset_buf = torch.zeros(self.num_envs, dtype=torch.long, device=self.device) 
 
 
+        self.power = torch.zeros((self.num_envs,1), dtype=torch.float, device=self.device)
+
         if self.print_success_stat:                        
             self.last_success_step = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             self.success_time = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
@@ -528,12 +530,8 @@ class AllegroHandDextreme(ADRVecTask):
                 print(f"Max dof deltas: {dof_delta.max(dim=0).values}, max across dofs: {self.dof_delta.abs().max().item():.2f}, mean: {self.dof_delta.abs().mean().item():.2f}")
                 print(f"Max dof delta radians per sec: {dof_delta.max().item() / frame_time:.2f}, mean: {dof_delta.mean().item() / frame_time:.2f}")
 
-                # actions_abs_avg = torch.abs(self.actions).mean(dim=0)
-                # # print(self.actions.size())
-                # # print(actions_abs_avg.size())
-                # for i in range(16):
-                #     print(f"action_abs_avg/dof_{i+1} = ", actions_abs_avg[i].item())
-                # # print(self.actions.cpu().numpy())
+                self.eval_summaries.add_scalar("power/power", self.power.mean().item(), self.frame)
+                self.eval_summaries.add_scalar("power/torque", self.dof_force_tensor.abs().mean().item(), self.frame)
 
                 # create a matplotlib bar chart of the self.successes_count
                 import matplotlib.pyplot as plt
@@ -707,6 +705,7 @@ class AllegroHandDextreme(ADRVecTask):
         self.obs_dict["rot_dist"][:, 0] = self.curr_rotation_dist
         self.obs_dict["rot_dist"][:, 1] = self.best_rotation_dist
 
+        self.power = torch.sum((self.dof_force_tensor * self.dof_vel).abs(), dim=1)
 
     def get_random_quat(self, env_ids):
 

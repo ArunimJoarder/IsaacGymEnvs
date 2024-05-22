@@ -59,7 +59,7 @@ env:
 
   actionsMovingAverage: 
     ### Dont need to worry about smoothing out because base controller is already smooth, and noise is allowed to be, well, "noisy"
-    range: [0.15, 0.15]
+    range: [0.15, 0.20]
     schedule_steps: 1000_000
     #schedule_steps: 300_000
     schedule_freq: 500 # schedule every 500 steps for stability
@@ -300,7 +300,7 @@ task:
     use_adr: True
 
     # set to false to not do update ADR ranges. useful for evaluation or training a base policy
-    update_adr_ranges: False 
+    update_adr_ranges: True 
     clear_other_queues: False
 
     # if set, boundary sampling and performance eval will occur at (bound + delta) instead of at bound.
@@ -444,14 +444,14 @@ task:
         delta: 0.0
         delta_style: 'additive' 
       affine_action_additive:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
       affine_action_white:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
 
       affine_cube_pose_scaling:
@@ -460,14 +460,14 @@ task:
         delta: 0.0
         delta_style: 'additive' 
       affine_cube_pose_additive:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
       affine_cube_pose_white:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
 
       affine_dof_pos_scaling:
@@ -476,20 +476,20 @@ task:
         delta: 0.0
         delta_style: 'additive' 
       affine_dof_pos_additive:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
       affine_dof_pos_white:
-        init_range: [0.0, 0.001]
+        init_range: [0.0, 0.04]
         limits: [0.0, 4.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive' 
       
       rna_alpha:
         init_range: [0.0, 0.0]
         limits: [0.0, 1.0]
-        delta: 0.0
+        delta: 0.01
         delta_style: 'additive'
 
 sim:
